@@ -8,10 +8,11 @@
 - **.env** 登入帳密設定檔
 
 ```env
-NUEIP_COMPANY=CompanyName // 公司名稱欄位
-NUEIP_USERNAME=account // 帳號欄位
-NUEIP_PASSWORD=password // 密碼欄位
+NUEIP_USERS=[{"company":"COMP_A","username":"userA","password":"passA"},{"company":"COMP_B","username":"userB","password":"passB"}]
 ```
+- **company** 公司代號
+- **username** 登入帳號
+- **password** 登入密碼
 
 ## Setup
 
