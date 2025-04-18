@@ -2,6 +2,7 @@
 import dotenv from 'dotenv';
 import { chromium } from '@playwright/test';
 import cron from 'node-cron';
+import { isHoliday, getHolidayInfo } from './services/holiday-service.js';
 
 // 載入環境變數
 dotenv.config();
@@ -18,6 +19,14 @@ const clockAction = async (actionType) => {
     const buttonIndex = isClockIn ? 0 : 1;
 
     console.log(`開始執行${actionName}打卡: ${new Date().toLocaleString()}`);
+    const today = new Date();
+    const holidayCheck = await isHoliday(today);
+
+    if (holidayCheck) {
+        const holidayInfo = await getHolidayInfo(today);
+        console.log(`今天是假日: ${holidayInfo?.description || '週末'}, 跳過打卡操作`);
+        return;
+    }
 
     // 使用 Playwright 的 chromium 瀏覽器 (已改為 import)
     const browser = await chromium.launch();
