@@ -26,3 +26,12 @@ npx playwright install
 ```
 node main.js
 ```
+
+## Docker Command 簡易啟用指令
+
+```bash
+docker build -t auto-clock:1.0 . // 建置映像檔
+docker run --name auto-clock -d auto-clock:1.0 // 啟動容器
+docer logs -f auto-clock // 查看容器log
+
+```
