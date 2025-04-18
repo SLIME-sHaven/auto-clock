@@ -7,13 +7,10 @@ import cron from 'node-cron';
 dotenv.config();
 
 // 從環境變數取得使用者資訊
-const users = [
-    {
-        company: process.env.NUEIP_COMPANY,
-        username: process.env.NUEIP_USERNAME,
-        password: process.env.NUEIP_PASSWORD
-    }
-];
+const users = JSON.parse(process.env.NUEIP_USERS);
+
+console.log(users, '用戶資訊');
+
 
 const clockAction = async (actionType) => {
     const isClockIn = actionType === 'in';
