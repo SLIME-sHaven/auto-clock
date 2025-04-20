@@ -4,6 +4,7 @@ import {getRandomTime} from "./utils/time.js";
 import {ClockOn, ClockOff} from "./services/clock-service.js"
 import startTelegramService, {sendMessage} from './services/telegram-service.js';
 import {isHoliday} from "./services/holiday-service.js";
+import dotenv from 'dotenv';
 
 let todayClockInTimeText = ""
 let todayClockOutTimeText = ""
@@ -58,7 +59,12 @@ cron.schedule('0 0 * * *', setupDailySchedules, {
 
 // 程式啟動時立即設置今天的排程
 setupDailySchedules();
-startTelegramService();
+
+// 有telegram key的話就啟動telegram服務
+if(process.env.TELEGRAM_KEY) {
+    startTelegramService();
+    global.telegramKey = process.env.TELEGRAM_KEY;
+}
 
 console.log('打卡排程已啟動，等待執行中...');
 console.log('上班打卡時間範圍: 週一至週五 早上 08:50 ~ 09:00');

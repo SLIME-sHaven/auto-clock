@@ -1,4 +1,4 @@
-import {getHolidayInfo, isHoliday} from "./holiday-service.js";
+import {getHolidayInfo, isHoliday, isSkipDate} from "./holiday-service.js";
 import {sendMessage, sendPhoto} from "./telegram-service.js"
 import {chromium} from "@playwright/test";
 import dotenv from 'dotenv';
@@ -11,6 +11,26 @@ const users = JSON.parse(process.env.NUEIP_USERS);
 
 console.log(users, '用戶資訊');
 
+const clockSendMessage = async (msg) => {
+    const isUseTelegram = global.telegramKey;
+    if(!isUseTelegram) return false;
+    await sendMessage(msg)
+    return true;
+}
+
+const clockSendPhoto = async (screenshotPath) => {
+    const isUseTelegram = global.telegramKey;
+    if(!isUseTelegram) return false;
+    const sendSuccess = await sendPhoto(screenshotPath);
+    // 成功的話刪除圖片
+    if (sendSuccess) {
+        await fs.unlink(screenshotPath);
+        return true;
+    } else {
+        return false;
+    }
+}
+
 const clockAction = async (actionType) => {
     const isClockIn = actionType === 'in';
     const actionName = isClockIn ? '上班' : '下班';
@@ -22,8 +42,16 @@ const clockAction = async (actionType) => {
 
     if (holidayCheck) {
         const holidayInfo = await getHolidayInfo(today);
-        sendMessage(`今天是假日: ${holidayInfo?.description || '週末'}, 跳過打卡操作`);
         console.log(`今天是假日: ${holidayInfo?.description || '週末'}, 跳過打卡操作`);
+        clockSendMessage(`今天是假日: ${holidayInfo?.description || '週末'}, 跳過打卡操作`);
+        return;
+    }
+
+    // 檢查今天是否是指定跳過不打卡的日期
+    const skipDateCheck = await isSkipDate(today);
+    if (skipDateCheck) {
+        console.log(`今天是指定跳過打卡的日期: ${today.toISOString().slice(0, 10)}, 跳過打卡操作`);
+        clockSendMessage(`今天是指定跳過打卡的日期: ${today.toISOString().slice(0, 10)}, 跳過打卡操作`);
         return;
     }
 
@@ -63,19 +91,18 @@ const clockAction = async (actionType) => {
             await page.screenshot({path: screenshotPath});
 
             // 8. 發送截圖與文字到 Telegram
-            const sendSuccess = await sendPhoto(screenshotPath);
+            const sendSuccess = await clockSendPhoto(screenshotPath);
             // 成功的話刪除圖片
             if (sendSuccess) {
-                await fs.unlink(screenshotPath);
-                await sendMessage(`${actionName}打卡成功: ${user.username}`);
+                await clockSendMessage(`${actionName}打卡成功: ${user.username}`);
             } else {
-                await sendMessage(`${actionName}打卡截圖發送失敗: ${user.username}`);
+                await clockSendMessage(`${actionName}打卡截圖發送失敗: ${user.username}`);
             }
 
             await context.close();
         } catch (error) {
             console.error(`用戶 ${user.username} ${actionName}打卡失敗:`, error);
-            await sendMessage(`${actionName}打卡失敗: ${user.username}`);
+            await clockSendMessage(`${actionName}打卡失敗: ${user.username}`);
         }
     }
 

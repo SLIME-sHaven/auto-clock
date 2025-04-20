@@ -130,3 +130,118 @@ export async function getHolidayInfo(date) {
         return null;
     }
 }
+
+// 存儲需要跳過打卡的日期
+let skipDatesCache = new Set();
+
+/**
+ * 從本地配置文件載入需要跳過的日期
+ * @returns {Promise<Set>} 需要跳過的日期集合
+ */
+export async function loadSkipDates() {
+    try {
+        // 如果緩存已有數據，直接返回
+        if (skipDatesCache.size > 0) {
+            return skipDatesCache;
+        }
+
+        // 從本地文件讀取跳過日期
+        try {
+            const filePath = path.resolve(__dirname, '..', 'contants', 'skip-dates.json');
+            const data = await fs.readFile(filePath, 'utf8');
+            const parsedData = JSON.parse(data);
+
+            if (Array.isArray(parsedData)) {
+                skipDatesCache = new Set(parsedData);
+                console.log(`從本地文件載入跳過打卡日期: ${Array.from(skipDatesCache).join(', ')}`);
+                return skipDatesCache;
+            }
+        } catch (readError) {
+            console.log(`讀取本地跳過日期數據失敗: ${readError.message}, 將使用空集合`);
+        }
+
+        // 如果都沒有找到數據，返回空集合
+        return skipDatesCache;
+    } catch (error) {
+        console.error('載入跳過日期數據失敗:', error);
+        return new Set();
+    }
+}
+
+/**
+ * 檢查指定日期是否為需要跳過打卡的日期
+ * @param {Date} date 要檢查的日期
+ * @returns {Promise<boolean>} 是否需要跳過打卡
+ */
+export async function isSkipDate(date) {
+    try {
+        const skipDates = await loadSkipDates();
+
+        // 格式化日期為 "YYYYMMDD" 格式
+        const formattedDate = date.getFullYear().toString() +
+            (date.getMonth() + 1).toString().padStart(2, '0') +
+            date.getDate().toString().padStart(2, '0');
+
+        // 檢查日期是否在跳過集合中
+        return skipDates.has(formattedDate);
+    } catch (error) {
+        console.error('檢查跳過日期失敗:', error);
+        return false;
+    }
+}
+
+// 添加一個函數用來添加新的跳過日期
+export async function addSkipDate(dateString) {
+    try {
+        // 驗證日期格式 (YYYYMMDD)
+        if (!/^\d{8}$/.test(dateString)) {
+            return false
+        }
+
+        const skipDates = await loadSkipDates();
+        skipDates.add(dateString);
+        skipDatesCache = skipDates;
+
+        // 將更新後的集合保存到文件
+        const filePath = path.resolve(__dirname, '..', 'contants', 'skip-dates.json');
+        await fs.writeFile(filePath, JSON.stringify(Array.from(skipDates)), 'utf8');
+
+        console.log(`已添加跳過打卡日期: ${dateString}`);
+        return true;
+    } catch (error) {
+        console.error('添加跳過日期失敗:', error);
+        return false;
+    }
+}
+
+// 移除特定的跳過打卡日期
+export async function removeSkipDate(dateString) {
+    try {
+        // 驗證日期格式 (YYYYMMDD)
+        if (!/^\d{8}$/.test(dateString)) {
+            return false
+        }
+
+        const skipDates = await loadSkipDates();
+
+        // 檢查日期是否存在
+        if (!skipDates.has(dateString)) {
+            console.log(`日期 ${dateString} 不在跳過打卡列表中`);
+            return false;
+        }
+
+        // 從集合中移除該日期
+        skipDates.delete(dateString);
+        skipDatesCache = skipDates;
+
+        // 將更新後的集合保存到文件
+        const filePath = path.resolve(__dirname, '..', 'contants', 'skip-dates.json');
+        await fs.writeFile(filePath, JSON.stringify(Array.from(skipDates)), 'utf8');
+
+        console.log(`已移除跳過打卡日期: ${dateString}`);
+        return true;
+    } catch (error) {
+        console.error('移除跳過日期失敗:', error);
+        return false;
+    }
+}
