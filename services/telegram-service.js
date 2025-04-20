@@ -98,7 +98,7 @@ const useTelegramService = async () => {
     bot.on('message', (msg) => {
         if (msg.text && !commandRegexes.some(regex => regex.test(msg.text))) {
             const chatId = msg.chat.id;
-            bot.sendMessage(chatId, '請使用指令與機器人互動。輸入 /start 查看可用指令。');
+            bot.sendMessage(chatId, '請使用指令與機器人互動。首次使用請先輸入啟用打卡。\n輸入 /start 查看可用指令。');
         }
     });
 
