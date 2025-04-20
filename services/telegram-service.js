@@ -24,6 +24,7 @@ const bot = new TelegramBot(token, {polling: true});
 
 const leaveRegex = /^我要請假\d+$/;
 const cancelLeaveRegex = /^我要收回請假\d+$/;
+const dateRegex = /\d{4}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])/;
 
 const useTelegramService = async () => {
     await loadChatId();
@@ -59,9 +60,9 @@ const useTelegramService = async () => {
     });
 
     // 請假指令
-    bot.onText(leaveRegex, (msg, match) => {
+    bot.onText(leaveRegex, (msg) => {
         const chatId = msg.chat.id;
-        const date = match[1]; // 取得日期部分
+        const date = msg.text.match(dateRegex)[0]; // 取得日期部分
         bot.sendMessage(chatId, `已收到您 ${date} 的請假申請，正在處理中...`);
         addSkipDate(date).then((isSuccess)=> {
             if(isSuccess) {
@@ -75,9 +76,9 @@ const useTelegramService = async () => {
     });
 
     // 收回請假指令
-    bot.onText(cancelLeaveRegex, (msg, match) => {
+    bot.onText(cancelLeaveRegex, (msg) => {
         const chatId = msg.chat.id;
-        const date = match[1]; // 取得日期部分
+        const date = msg.text.match(dateRegex)[0]; // 取得日期部分
         // 处理收回请假逻辑
         bot.sendMessage(chatId, `已收到您收回 ${date} 請假的申請，正在處理中...`);
         removeSkipDate(date).then((isSuccess)=> {
