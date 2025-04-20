@@ -31,7 +31,7 @@ const useTelegramService = async () => {
 // 監聽 /start 命令
     bot.onText(/\/start/, (msg) => {
         const chatId = msg.chat.id;
-        bot.sendMessage(chatId, '歡迎使用 API 機器人！\n首次使用請先輸入啟用打卡。\n您可以使用以下命令：\n/hello - 讓天線寶寶跟你say hello');
+        bot.sendMessage(chatId, '歡迎使用 API 機器人！\n首次使用請先輸入「啟動打卡」。\n您可以使用以下命令：\n/hello - 讓天線寶寶跟你say hello');
     });
 
     bot.onText(/啟動打卡/, async (msg) => {
@@ -98,7 +98,7 @@ const useTelegramService = async () => {
     bot.on('message', (msg) => {
         if (msg.text && !commandRegexes.some(regex => regex.test(msg.text))) {
             const chatId = msg.chat.id;
-            bot.sendMessage(chatId, '請使用指令與機器人互動。首次使用請先輸入啟用打卡。\n輸入 /start 查看可用指令。');
+            bot.sendMessage(chatId, '請使用指令與機器人互動。首次使用請先輸入「啟動打卡」。\n輸入 /start 查看可用指令。');
         }
     });
 
