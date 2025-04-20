@@ -2,10 +2,11 @@ import dotenv from 'dotenv';
 import TelegramBot from 'node-telegram-bot-api';
 import fs from 'fs/promises';
 import path from 'path';
+import{ ClockOn, ClockOff } from "./clock-service.js";
 
 // 檔案保存路徑
 const CONFIG_FILE = path.join(process.cwd(), 'config.json');
-const COMMENDS = ["啟動打卡"]
+const COMMENDS = ["啟動打卡", "幫我打下班卡", "幫我打上班卡"]
 // 載入環境變數
 dotenv.config();
 // 這裡替換成您的 Telegram Bot API Token
@@ -27,6 +28,16 @@ const useTelegramService = async() => {
         // 保存聊天 ID 到檔案
         await saveChatId(chatId);
         bot.sendMessage(chatId, `已啟動打卡功能！聊天室ID為：${chatId}`);
+    });
+
+    bot.onText(/幫我打上班卡/, async(msg) => {
+        ClockOn();
+        bot.sendMessage(chatId, '已為您打"上班卡"，請稍後');
+    });
+
+    bot.onText(/幫我打下班卡/, async(msg) => {
+        ClockOff();
+        bot.sendMessage(chatId, '已為您打"下班卡"，請稍後');
     });
 
     bot.onText(/\/hello/, (msg) => {

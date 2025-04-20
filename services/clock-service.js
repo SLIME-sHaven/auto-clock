@@ -69,12 +69,13 @@ const clockAction = async (actionType) => {
                 await fs.unlink(screenshotPath);
                 await sendMessage(`${actionName}打卡成功: ${user.username}`);
             } else {
-                await sendMessage(`${actionName}打卡失敗: ${user.username}`);
+                await sendMessage(`${actionName}打卡截圖發送失敗: ${user.username}`);
             }
 
             await context.close();
         } catch (error) {
             console.error(`用戶 ${user.username} ${actionName}打卡失敗:`, error);
+            await sendMessage(`${actionName}打卡失敗: ${user.username}`);
         }
     }
 
