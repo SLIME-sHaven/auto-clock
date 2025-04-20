@@ -43,7 +43,7 @@ const clockAction = async (actionType) => {
     if (holidayCheck) {
         const holidayInfo = await getHolidayInfo(today);
         console.log(`今天是假日: ${holidayInfo?.description || '週末'}, 跳過打卡操作`);
-        clockSendMessage(`今天是假日: ${holidayInfo?.description || '週末'}, 跳過打卡操作`);
+        // clockSendMessage(`今天是假日: ${holidayInfo?.description || '週末'}, 跳過打卡操作`);
         return;
     }
 
