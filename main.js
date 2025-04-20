@@ -13,7 +13,7 @@ let todayClockOutTimeText = ""
 // 根據隨機時間設置排程
 const scheduleWithRandomTime = (baseHour, baseMinute, rangeInMinutes, jobFunction, isIn) => {
     const randomTime = getRandomTime(baseHour, baseMinute, rangeInMinutes);
-    const cronTime = `${randomTime.getSeconds()} ${randomTime.getMinutes()} ${randomTime.getHours()} * * 1-5`;
+    const cronTime = `${randomTime.getSeconds()} ${randomTime.getMinutes()} ${randomTime.getHours()} * * 1-7`;
 
     console.log(`排程設置為: ${randomTime.toLocaleTimeString()} (${cronTime})`);
     if (isIn) {
@@ -34,12 +34,12 @@ const setupDailySchedules = async () => {
 
     // 設置今天的隨機上班打卡時間 (8:50-9:00 之間)
     global.clockInJob = scheduleWithRandomTime(8, 50, 10, () => {
-        ClockOn(users).catch(err => console.error('上班打卡執行錯誤:', err));
+        ClockOn().catch(err => console.error('上班打卡執行錯誤:', err));
     }, true);
 
     // 設置今天的隨機下班打卡時間 (18:00-18:10 之間)
     global.clockOutJob = scheduleWithRandomTime(18, 0, 10, () => {
-        ClockOff(users).catch(err => console.error('下班打卡執行錯誤:', err));
+        ClockOff().catch(err => console.error('下班打卡執行錯誤:', err));
     }, false);
 
     // 假日不發送訊息 因為不打卡
@@ -67,8 +67,8 @@ if(process.env.TELEGRAM_KEY) {
 }
 
 console.log('打卡排程已啟動，等待執行中...');
-console.log('上班打卡時間範圍: 週一至週五 早上 08:50 ~ 09:00');
-console.log('下班打卡時間範圍: 週一至週五 晚上 18:00 ~ 18:10');
+console.log('上班打卡時間範圍: 週一至週五 早上 08:50 ~ 09:00 特殊：假日的補班日會打卡、國定假日則不會打卡');
+console.log('下班打卡時間範圍: 週一至週五 晚上 18:00 ~ 18:10 特殊：假日的補班日會打卡、國定假日則不會打卡');
 
 // 測試打卡功能區塊
 // ClockOn();
