@@ -28,9 +28,15 @@ const scheduleWithRandomTime = (baseHour, baseMinute, rangeInMinutes, jobFunctio
 
 // 主函數 - 每天重新設置隨機排程
 const setupDailySchedules = async () => {
+
     // 清除前一天的排程
     if (global.clockInJob) global.clockInJob.stop();
     if (global.clockOutJob) global.clockOutJob.stop();
+
+    // 假日不打卡
+    const today = new Date();
+    const holidayCheck = await isHoliday(today);
+    if (holidayCheck) return
 
     // 設置今天的隨機上班打卡時間 (8:50-9:00 之間)
     global.clockInJob = scheduleWithRandomTime(8, 50, 10, () => {
@@ -42,10 +48,6 @@ const setupDailySchedules = async () => {
         ClockOff().catch(err => console.error('下班打卡執行錯誤:', err));
     }, false);
 
-    // 假日不發送訊息 因為不打卡
-    const today = new Date();
-    const holidayCheck = await isHoliday(today);
-    if (holidayCheck) return
     sendMessage(
         `已設置今天的隨機打卡時間 (${new Date().toLocaleDateString()})\n今天的上班打卡時間: ${todayClockInTimeText}\n下班打卡時間: ${todayClockOutTimeText}`
     )
