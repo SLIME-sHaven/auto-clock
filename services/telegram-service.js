@@ -44,14 +44,14 @@ const useTelegramService = async () => {
 
     bot.onText(/幫我打上班卡/, async (msg) => {
         const chatId = msg.chat.id;
-        await ClockOn();
         bot.sendMessage(chatId, '已為您打"上班卡"，請稍後');
+        await ClockOn();
     });
 
     bot.onText(/幫我打下班卡/, async (msg) => {
         const chatId = msg.chat.id;
-        await ClockOff();
         bot.sendMessage(chatId, '已為您打"下班卡"，請稍後');
+        await ClockOff();
     });
 
     bot.onText(/\/hello/, (msg) => {
