@@ -1,7 +1,7 @@
 // services/holidayService.js
 import fs from 'fs/promises';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import {fileURLToPath} from 'url';
 
 // 獲取當前文件的目錄路徑
 const __filename = fileURLToPath(import.meta.url);
@@ -244,4 +244,10 @@ export async function removeSkipDate(dateString) {
         console.error('移除跳過日期失敗:', error);
         return false;
     }
+}
+
+export const isSkipClock = async (date) => {
+    const isCurrentSkipDate = await isSkipDate(date);
+    const isCurrentHoliday = await isHoliday(date);
+    return isCurrentSkipDate || isCurrentHoliday;
 }

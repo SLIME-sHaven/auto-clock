@@ -3,11 +3,13 @@ import cron from 'node-cron';
 import {getRandomTime} from "./utils/time.js";
 import {ClockOn, ClockOff} from "./services/clock-service.js"
 import startTelegramService, {sendMessage} from './services/telegram-service.js';
-import {isHoliday} from "./services/holiday-service.js";
+import {isSkipClock} from "./services/holiday-service.js";
 import dotenv from 'dotenv';
+dotenv.config();
 
 let todayClockInTimeText = ""
 let todayClockOutTimeText = ""
+const rangeMinutes = Number(JSON.parse(process.env.RANGE_MIN)) || 10; // 隨機時間範圍 (分鐘)
 
 
 // 根據隨機時間設置排程
@@ -35,16 +37,16 @@ const setupDailySchedules = async () => {
 
     // 假日不打卡
     const today = new Date();
-    const holidayCheck = await isHoliday(today);
+    const holidayCheck = await isSkipClock(today);
     if (holidayCheck) return
 
-    // 設置今天的隨機上班打卡時間 (8:50-9:00 之間)
-    global.clockInJob = scheduleWithRandomTime(8, 50, 10, () => {
+    // 設置今天的隨機上班打卡時間 (預設是8:50-9:00 之間)
+    global.clockInJob = scheduleWithRandomTime(8, 50, rangeMinutes, () => {
         ClockOn().catch(err => console.error('上班打卡執行錯誤:', err));
     }, true);
 
-    // 設置今天的隨機下班打卡時間 (18:00-18:10 之間)
-    global.clockOutJob = scheduleWithRandomTime(18, 0, 10, () => {
+    // 設置今天的隨機下班打卡時間 (預設是18:00-18:10 之間)
+    global.clockOutJob = scheduleWithRandomTime(18, 0, rangeMinutes, () => {
         ClockOff().catch(err => console.error('下班打卡執行錯誤:', err));
     }, false);
 
@@ -63,7 +65,7 @@ cron.schedule('0 0 * * *', setupDailySchedules, {
 setupDailySchedules();
 
 // 有telegram key的話就啟動telegram服務
-if(process.env.TELEGRAM_KEY) {
+if (process.env.TELEGRAM_KEY) {
     startTelegramService();
     global.telegramKey = process.env.TELEGRAM_KEY;
 }
