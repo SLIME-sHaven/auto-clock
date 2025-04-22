@@ -1,4 +1,5 @@
 import {getHolidayInfo, isHoliday, isSkipDate} from "./holiday-service.js";
+import {getGpsPosition} from "../utils/common.js";
 import {sendMessage, sendPhoto} from "./telegram-service.js"
 import {chromium} from "@playwright/test";
 import dotenv from 'dotenv';
@@ -13,14 +14,14 @@ console.log(users, '用戶資訊');
 
 const clockSendMessage = async (msg) => {
     const isUseTelegram = global.telegramKey;
-    if(!isUseTelegram) return false;
+    if (!isUseTelegram) return false;
     await sendMessage(msg)
     return true;
 }
 
 const clockSendPhoto = async (screenshotPath) => {
     const isUseTelegram = global.telegramKey;
-    if(!isUseTelegram) return false;
+    if (!isUseTelegram) return false;
     const sendSuccess = await sendPhoto(screenshotPath);
     // 成功的話刪除圖片
     if (sendSuccess) {
@@ -60,8 +61,28 @@ const clockAction = async (actionType) => {
 
     for (const user of users) {
         try {
+            let context;
             console.log(`為用戶 ${user.username} 打${actionName}卡`);
-            const context = await browser.newContext();
+            const gpsPosition = process.env.GPS_POSITION;
+            console.log(gpsPosition !== '' && gpsPosition !== undefined)
+            console.log(`GPS 位置: ${gpsPosition}`);
+            if (gpsPosition === '' || gpsPosition === undefined || gpsPosition === null) {
+                context = await browser.newContext();
+                console.log('沒有 GPS 位置，使用預設位置');
+            } else {
+                const {latitude, longitude} = getGpsPosition(gpsPosition);
+                console.log(`GPS 位置: 緯度 ${latitude}, 經度 ${longitude}`);
+                context = await browser.newContext({
+                    geolocation: {
+                        latitude: latitude, // 緯度座標
+                        longitude: longitude, // 經度座標
+                        accuracy: 100 // 精確度
+                    },
+                    permissions: ['geolocation']
+                });
+            }
+            // const context = await browser.newContext();
+
             const page = await context.newPage();
 
             // 1. 訪問登入頁面
