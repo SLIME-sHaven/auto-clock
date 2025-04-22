@@ -63,7 +63,7 @@ const clockAction = async (actionType) => {
         try {
             let context;
             console.log(`為用戶 ${user.username} 打${actionName}卡`);
-            const gpsPosition = process.env.GPS_POSITION;
+            const gpsPosition = user.gpsPosition;
             console.log(gpsPosition !== '' && gpsPosition !== undefined)
             console.log(`GPS 位置: ${gpsPosition}`);
             if (gpsPosition === '' || gpsPosition === undefined || gpsPosition === null) {
