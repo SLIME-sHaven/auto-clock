@@ -8,11 +8,28 @@
 - **.env** 登入帳密設定檔
 
 ```env
-NUEIP_USERS=[{"company":"COMP_A","username":"userA","password":"passA"},{"company":"COMP_B","username":"userB","password":"passB"}]
+NUEIP_USERS=[{"company":"COMP_A","username":"userA","password":"passA","gpsPosition":"24.1785068,120.6720471"},{"company":"COMP_B","username":"userB","password":"passB","gpsPosition":"24.1785068,120.6720471"}]
+TELEGRAM_KEY=123456789:ABC-DEF1234ghIkl-zyx57W2L0u
+RANGE_MIN=10
+# 聊天室ID 沒有則為空字串
+CHAT_ID=123456789
+
 ```
+### NUEIP_USERS
 - **company** 公司代號
 - **username** 登入帳號
 - **password** 登入密碼
+- **gpsPosition** 打卡位置緯度與經度
+
+### TELEGRAM_KEY
+telegram機器人Key
+
+### RANGE_MIN
+打卡時間分鐘的隨機range範圍
+
+### CHAT_ID
+telegram訊息發送聊天室ID
+不填會抓機器人預設的聊天室ID
 
 ## Setup
 
@@ -58,3 +75,4 @@ TELEGRAM_KEY=123456789:ABC-DEF1234ghIkl-zyx57W2L0u
 - **我要收回請假YYYYMMDD** 收回"指定日期不執行打卡"
 - **幫我打下班卡** 透過系統幫你直接打卡下班
 - **幫我打上班卡** 透過系統幫你直接打卡上班
+- **今日時程** 查看今日打卡時程安排
