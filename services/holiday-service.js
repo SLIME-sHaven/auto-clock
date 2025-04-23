@@ -134,18 +134,15 @@ export async function getHolidayInfo(date) {
 // 存儲需要跳過打卡的日期
 let skipDatesCache = new Set();
 
-/**
- * 從本地配置文件載入需要跳過的日期
- * @returns {Promise<Set>} 需要跳過的日期集合
- */
+// Modified loadSkipDates function to handle the new format
 export async function loadSkipDates() {
     try {
-        // 如果緩存已有數據，直接返回
+        // If cache already has data, return directly
         if (skipDatesCache.size > 0) {
             return skipDatesCache;
         }
 
-        // 從本地文件讀取跳過日期
+        // Read skip dates from local file
         try {
             const filePath = path.resolve(__dirname, '..', 'contants', 'skip-dates.json');
             const data = await fs.readFile(filePath, 'utf8');
@@ -153,14 +150,14 @@ export async function loadSkipDates() {
 
             if (Array.isArray(parsedData)) {
                 skipDatesCache = new Set(parsedData);
-                console.log(`從本地文件載入跳過打卡日期: ${Array.from(skipDatesCache).join(', ')}`);
+                console.log(`從本地文件載入跳過打卡日期: ${skipDatesCache.size} 筆記錄`);
                 return skipDatesCache;
             }
         } catch (readError) {
             console.log(`讀取本地跳過日期數據失敗: ${readError.message}, 將使用空集合`);
         }
 
-        // 如果都沒有找到數據，返回空集合
+        // If no data found, return empty set
         return skipDatesCache;
     } catch (error) {
         console.error('載入跳過日期數據失敗:', error);
@@ -169,11 +166,12 @@ export async function loadSkipDates() {
 }
 
 /**
- * 檢查指定日期是否為需要跳過打卡的日期
+ * 檢查指定日期和用戶是否為需要跳過打卡的日期
  * @param {Date} date 要檢查的日期
+ * @param {string} username 用戶名
  * @returns {Promise<boolean>} 是否需要跳過打卡
  */
-export async function isSkipDate(date) {
+export async function isSkipDate(date, username = '') {
     try {
         const skipDates = await loadSkipDates();
 
@@ -182,31 +180,61 @@ export async function isSkipDate(date) {
             (date.getMonth() + 1).toString().padStart(2, '0') +
             date.getDate().toString().padStart(2, '0');
 
-        // 檢查日期是否在跳過集合中
-        return skipDates.has(formattedDate);
+        // 檢查日期是否在跳過集合中，並且用戶名匹配
+        for (const entry of skipDates) {
+            if (typeof entry === 'object' &&
+                entry.date === formattedDate &&
+                entry.username === username) {
+                return true;
+            }
+        }
+
+        return false;
     } catch (error) {
         console.error('檢查跳過日期失敗:', error);
         return false;
     }
 }
 
-// 添加一個函數用來添加新的跳過日期
-export async function addSkipDate(dateString) {
+/**
+ * 添加一個新的跳過日期
+ * @param {string} dateString 日期字符串 (YYYYMMDD)
+ * @param {string} username 用戶名
+ * @returns {Promise<boolean>} 操作是否成功
+ */
+export async function addSkipDate(dateString, username = '') {
     try {
         // 驗證日期格式 (YYYYMMDD)
         if (!/^\d{8}$/.test(dateString)) {
-            return false
+            return false;
         }
 
         const skipDates = await loadSkipDates();
-        skipDates.add(dateString);
+
+        // 檢查是否已經存在相同的記錄
+        for (const entry of skipDates) {
+            if (typeof entry === 'object' &&
+                entry.date === dateString &&
+                entry.username === username) {
+                console.log(`跳過打卡日期已存在: ${dateString} 用戶: ${username}`);
+                return true; // 已存在，視為成功
+            }
+        }
+
+        // 添加新記錄
+        const newEntry = {
+            username: username,
+            date: dateString
+        };
+
+        skipDates.add(newEntry);
         skipDatesCache = skipDates;
 
         // 將更新後的集合保存到文件
         const filePath = path.resolve(__dirname, '..', 'contants', 'skip-dates.json');
         await fs.writeFile(filePath, JSON.stringify(Array.from(skipDates)), 'utf8');
 
-        console.log(`已添加跳過打卡日期: ${dateString}`);
+        console.log(`已添加跳過打卡日期: ${dateString} 用戶: ${username}`);
         return true;
     } catch (error) {
         console.error('添加跳過日期失敗:', error);
@@ -214,31 +242,47 @@ export async function addSkipDate(dateString) {
     }
 }
 
-// 移除特定的跳過打卡日期
-export async function removeSkipDate(dateString) {
+/**
+ * 移除特定的跳過打卡日期
+ * @param {string} dateString 日期字符串 (YYYYMMDD)
+ * @param {string} username 用戶名
+ * @returns {Promise<boolean>} 操作是否成功
+ */
+export async function removeSkipDate(dateString, username = '') {
     try {
         // 驗證日期格式 (YYYYMMDD)
         if (!/^\d{8}$/.test(dateString)) {
-            return false
-        }
-
-        const skipDates = await loadSkipDates();
-
-        // 檢查日期是否存在
-        if (!skipDates.has(dateString)) {
-            console.log(`日期 ${dateString} 不在跳過打卡列表中`);
             return false;
         }
 
-        // 從集合中移除該日期
-        skipDates.delete(dateString);
+        const skipDates = await loadSkipDates();
+        let entryToRemove = null;
+
+        // 查找要刪除的記錄
+        for (const entry of skipDates) {
+            if (typeof entry === 'object' &&
+                entry.date === dateString &&
+                entry.username === username) {
+                entryToRemove = entry;
+                break;
+            }
+        }
+
+        // 檢查記錄是否存在
+        if (!entryToRemove) {
+            console.log(`日期 ${dateString} 用戶 ${username} 不在跳過打卡列表中`);
+            return false;
+        }
+
+        // 從集合中移除該記錄
+        skipDates.delete(entryToRemove);
         skipDatesCache = skipDates;
 
         // 將更新後的集合保存到文件
         const filePath = path.resolve(__dirname, '..', 'contants', 'skip-dates.json');
         await fs.writeFile(filePath, JSON.stringify(Array.from(skipDates)), 'utf8');
 
-        console.log(`已移除跳過打卡日期: ${dateString}`);
+        console.log(`已移除跳過打卡日期: ${dateString} 用戶: ${username}`);
         return true;
     } catch (error) {
         console.error('移除跳過日期失敗:', error);
@@ -246,8 +290,9 @@ export async function removeSkipDate(dateString) {
     }
 }
 
-export const isSkipClock = async (date) => {
-    const isCurrentSkipDate = await isSkipDate(date);
+// 更新 isSkipClock 函數以包含 username 參數
+export const isSkipClock = async (date, username = '') => {
+    const isCurrentSkipDate = await isSkipDate(date, username);
     const isCurrentHoliday = await isHoliday(date);
     return isCurrentSkipDate || isCurrentHoliday;
 }

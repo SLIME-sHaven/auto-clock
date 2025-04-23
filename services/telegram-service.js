@@ -7,13 +7,15 @@ import {addSkipDate, removeSkipDate} from "./holiday-service.js";
 
 // 檔案保存路徑
 const CONFIG_FILE = path.join(process.cwd(), 'config.json');
+const leaveRegex = /我要請假(\d{8}),(.+)/;;
+const cancelLeaveRegex = /我要收回請假(\d{8}),(.+)/;
 const commandRegexes = [
     /^\/\w+$/, // 以 / 开头的命令
     /^啟動打卡$/,
     /^幫我打下班卡$/,
     /^幫我打上班卡$/,
-    /^我要請假\d+$/,
-    /^我要收回請假\d+$/,
+    leaveRegex,
+    cancelLeaveRegex,
     /^今日排程$/,
 ];
 // 載入環境變數
@@ -25,10 +27,6 @@ const envChatId = process.env.CHAT_ID ? Number(JSON.parse(process.env.CHAT_ID)) 
 const bot = new TelegramBot(token, {polling: true});
 let scheduleText = "";
 
-const leaveRegex = /^我要請假\d+$/;
-const cancelLeaveRegex = /^我要收回請假\d+$/;
-const dateRegex = /\d{4}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])/;
-
 export const setScheduleText = (text) => {
     scheduleText = text;
 }
@@ -38,7 +36,7 @@ const useTelegramService = async () => {
     // 監聽 /start 命令
     bot.onText(/\/start/, (msg) => {
         const chatId = msg.chat.id;
-        bot.sendMessage(chatId, '歡迎使用 API 機器人！\n首次使用請先輸入「啟動打卡」。\n您可以使用以下命令：\n/hello - 讓天線寶寶跟你say hello');
+        bot.sendMessage(chatId, '歡迎使用 API 機器人！\n首次使用請先輸入「啟動打卡」。\n您可以使用以下命令：\n/hello - 讓天線寶寶跟你say hello\n啟動打卡 - 啟動打卡功能\n幫我打上班卡 - 打上班卡\n幫我打下班卡 - 打下班卡\n今日排程 - 查看今日排程\n我要請假YYYYMMDD,用戶名 - 請假\n我要收回請假YYYYMMDD,用戶名 - 收回請假');
     });
 
     bot.onText(/啟動打卡/, async (msg) => {
@@ -74,9 +72,11 @@ const useTelegramService = async () => {
     // 請假指令
     bot.onText(leaveRegex, (msg) => {
         const chatId = msg.chat.id;
-        const date = msg.text.match(dateRegex)[0]; // 取得日期部分
+        console.log(msg.text.match(leaveRegex), ' msg.text.match')
+        const date = msg.text.match(leaveRegex)[1]; // 取得日期部分
+        const username = msg.text.match(leaveRegex)[2]; // 取得用戶名部分
         bot.sendMessage(chatId, `已收到您 ${date} 的請假申請，正在處理中...`);
-        addSkipDate(date).then((isSuccess) => {
+        addSkipDate(date, username).then((isSuccess) => {
             if (isSuccess) {
                 bot.sendMessage(chatId, `已成功添加 ${date} 為請假日期`);
             } else {
@@ -90,10 +90,11 @@ const useTelegramService = async () => {
     // 收回請假指令
     bot.onText(cancelLeaveRegex, (msg) => {
         const chatId = msg.chat.id;
-        const date = msg.text.match(dateRegex)[0]; // 取得日期部分
+        const date = msg.text.match(cancelLeaveRegex)[1]; // 取得日期部分
+        const username = msg.text.match(cancelLeaveRegex)[2]; // 取得用戶名部分
         // 处理收回请假逻辑
         bot.sendMessage(chatId, `已收到您收回 ${date} 請假的申請，正在處理中...`);
-        removeSkipDate(date).then((isSuccess) => {
+        removeSkipDate(date, username).then((isSuccess) => {
             if (isSuccess) {
                 bot.sendMessage(chatId, `已成功移除 ${date} 為請假日期`);
             } else {

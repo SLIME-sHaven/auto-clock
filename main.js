@@ -3,7 +3,6 @@ import cron from 'node-cron';
 import {getRandomTime} from "./utils/time.js";
 import {ClockOn, ClockOff} from "./services/clock-service.js"
 import startTelegramService, {sendMessage, setScheduleText} from './services/telegram-service.js';
-import {isSkipClock} from "./services/holiday-service.js";
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -33,11 +32,6 @@ const setupDailySchedules = async () => {
     if (global.clockInJob) global.clockInJob.stop();
     if (global.clockOutJob) global.clockOutJob.stop();
 
-    // 假日不打卡(包含請假跳過日)
-    const today = new Date();
-    const holidayCheck = await isSkipClock(today);
-    if (holidayCheck) return
-
     // 設置今天的隨機上班打卡時間 (預設是8:50-9:00 之間)
     global.clockInJob = scheduleWithRandomTime(8, 50, rangeMinutes, () => {
         ClockOn().catch(err => console.error('上班打卡執行錯誤:', err));
@@ -49,7 +43,7 @@ const setupDailySchedules = async () => {
     }, false);
 
     sendMessage(
-        `已設置今天的隨機打卡時間 (${new Date().toLocaleDateString()})\n今天的上班打卡時間: ${todayClockInTimeText}\n下班打卡時間: ${todayClockOutTimeText}`
+        `已設置今天的排程打卡時間 (${new Date().toLocaleDateString()})\n今天的上班打卡時間: ${todayClockInTimeText}\n下班打卡時間: ${todayClockOutTimeText}\n僅僅設置排程，假日與請假判斷依照各個用戶`
     )
     setScheduleText(
         `今天的上班打卡時間: ${todayClockInTimeText}\n下班打卡時間: ${todayClockOutTimeText}`

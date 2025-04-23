@@ -36,31 +36,29 @@ const clockAction = async (actionType) => {
     const isClockIn = actionType === 'in';
     const actionName = isClockIn ? '上班' : '下班';
     const buttonIndex = isClockIn ? 0 : 1;
-
     console.log(`開始執行${actionName}打卡: ${new Date().toLocaleString()}`);
     const today = new Date();
     const holidayCheck = await isHoliday(today);
 
+    // 假日就全部用戶不打卡
     if (holidayCheck) {
         const holidayInfo = await getHolidayInfo(today);
         console.log(`今天是假日: ${holidayInfo?.description || '週末'}, 跳過打卡操作`);
         // clockSendMessage(`今天是假日: ${holidayInfo?.description || '週末'}, 跳過打卡操作`);
         return;
     }
-
-    // 檢查今天是否是指定跳過不打卡的日期
-    const skipDateCheck = await isSkipDate(today);
-    if (skipDateCheck) {
-        console.log(`今天是指定跳過打卡的日期: ${today.toISOString().slice(0, 10)}, 跳過打卡操作`);
-        clockSendMessage(`今天是指定跳過打卡的日期: ${today.toISOString().slice(0, 10)}, 跳過打卡操作`);
-        return;
-    }
-
     // 使用 Playwright 的 chromium 瀏覽器 (已改為 import)
     const browser = await chromium.launch();
 
     for (const user of users) {
         try {
+            // 檢查今天指定用戶是否不打卡
+            const skipDateCheck = await isSkipDate(today, user.username);
+            if (skipDateCheck) {
+                console.log(`今天是指定跳過打卡的日期: ${today.toISOString().slice(0, 10)}, 跳過打卡操作`);
+                clockSendMessage(`今天是指定跳過打卡的日期: ${today.toISOString().slice(0, 10)}, 跳過打卡操作`);
+                return;
+            }
             let context;
             console.log(`為用戶 ${user.username} 打${actionName}卡`);
             const gpsPosition = user.gpsPosition;
