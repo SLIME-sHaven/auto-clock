@@ -1,5 +1,5 @@
 import {getHolidayInfo, isHoliday, isSkipDate} from "./holiday-service.js";
-import {getGpsPosition} from "../utils/common.js";
+import {getGpsPosition, randomizeGpsCoordinate} from "../utils/common.js";
 import {sendMessage, sendPhoto} from "./telegram-service.js"
 import {chromium} from "@playwright/test";
 import dotenv from 'dotenv';
@@ -72,8 +72,8 @@ const clockAction = async (actionType) => {
                 console.log(`GPS 位置: 緯度 ${latitude}, 經度 ${longitude}`);
                 context = await browser.newContext({
                     geolocation: {
-                        latitude: latitude, // 緯度座標
-                        longitude: longitude, // 經度座標
+                        latitude: randomizeGpsCoordinate(latitude), // 緯度座標
+                        longitude: randomizeGpsCoordinate(longitude), // 經度座標
                         accuracy: 100 // 精確度
                     },
                     permissions: ['geolocation']
