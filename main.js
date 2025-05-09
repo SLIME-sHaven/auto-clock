@@ -1,15 +1,20 @@
 // 使用 ES Module 語法 (import)
 import cron from 'node-cron';
-import {getRandomTime} from "./utils/time.js";
+import {getRandomTime, parseTimeString} from "./utils/time.js";
 import {ClockOn, ClockOff} from "./services/clock-service.js"
 import startTelegramService, {sendMessage, setScheduleText} from './services/telegram-service.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
+const rangeMinutes = Number(JSON.parse(process.env.RANGE_MIN)) || 10; // 隨機時間範圍 (分鐘)
+const clockInTime = process.env.WORK_START_TIME || '08:50'; // 上班打卡時間
+const clockOutTime = process.env.WORK_END_TIME || '18:00'; // 下班打卡時間
+const formatClockInTime = parseTimeString(clockInTime);
+const formatClockOutTime = parseTimeString(clockOutTime);
+const { hour:startHour, minute:startMin } = formatClockInTime;
+const { hour:endHour, minute:endMin } = formatClockOutTime;
 let todayClockInTimeText = ""
 let todayClockOutTimeText = ""
-const rangeMinutes = Number(JSON.parse(process.env.RANGE_MIN)) || 10; // 隨機時間範圍 (分鐘)
-
 
 // 根據隨機時間設置排程
 const scheduleWithRandomTime = (baseHour, baseMinute, rangeInMinutes, jobFunction, isIn) => {
@@ -33,12 +38,12 @@ const setupDailySchedules = async () => {
     if (global.clockOutJob) global.clockOutJob.stop();
 
     // 設置今天的隨機上班打卡時間 (預設是8:50-9:00 之間)
-    global.clockInJob = scheduleWithRandomTime(8, 50, rangeMinutes, () => {
+    global.clockInJob = scheduleWithRandomTime(startHour, startMin, rangeMinutes, () => {
         ClockOn().catch(err => console.error('上班打卡執行錯誤:', err));
     }, true);
 
     // 設置今天的隨機下班打卡時間 (預設是18:00-18:10 之間)
-    global.clockOutJob = scheduleWithRandomTime(18, 0, rangeMinutes, () => {
+    global.clockOutJob = scheduleWithRandomTime(endHour, endMin, rangeMinutes, () => {
         ClockOff().catch(err => console.error('下班打卡執行錯誤:', err));
     }, false);
 
@@ -66,8 +71,8 @@ if (process.env.TELEGRAM_KEY) {
 }
 
 console.log('打卡排程已啟動，等待執行中...');
-console.log('上班打卡時間範圍: 週一至週五 早上 08:50 ~ 09:00 特殊：假日的補班日會打卡、國定假日則不會打卡');
-console.log('下班打卡時間範圍: 週一至週五 晚上 18:00 ~ 18:10 特殊：假日的補班日會打卡、國定假日則不會打卡');
+console.log(`上班打卡時間範圍: 週一至週五 早上 ${startHour}:${startMin}+-${rangeMinutes} 特殊：假日的補班日會打卡、國定假日則不會打卡`);
+console.log(`下班打卡時間範圍: 週一至週五 晚上 ${endHour}:${endMin}+-${rangeMinutes} 特殊：假日的補班日會打卡、國定假日則不會打卡`);
 
 // 測試打卡功能區塊
 // ClockOn();
