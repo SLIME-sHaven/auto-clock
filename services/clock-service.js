@@ -10,7 +10,11 @@ dotenv.config();
 // 從環境變數取得使用者資訊
 const users = JSON.parse(process.env.NUEIP_USERS);
 
+// 設置重試次數（可以從環境變數讀取或設為常數）
+const MAX_RETRY_ATTEMPTS = parseInt(process.env.MAX_RETRY_ATTEMPTS || '3');
+
 console.log(users, '用戶資訊');
+console.log(`最大重試次數: ${MAX_RETRY_ATTEMPTS}`);
 
 const clockSendMessage = async (msg) => {
     const isUseTelegram = global.telegramKey;
@@ -32,38 +36,24 @@ const clockSendPhoto = async (screenshotPath) => {
     }
 }
 
-const clockAction = async (actionType) => {
-    const isClockIn = actionType === 'in';
-    const actionName = isClockIn ? '上班' : '下班';
-    const buttonIndex = isClockIn ? 0 : 1;
-    console.log(`開始執行${actionName}打卡: ${new Date().toLocaleString()}`);
-    const today = new Date();
-    const holidayCheck = await isHoliday(today);
+// 為單個用戶執行打卡操作的函數
+const clockForUser = async (user, browser, isClockIn, actionName, buttonIndex) => {
+    let retryCount = 0;
+    let success = false;
 
-    // 假日就全部用戶不打卡
-    if (holidayCheck) {
-        const holidayInfo = await getHolidayInfo(today);
-        console.log(`今天是假日: ${holidayInfo?.description || '週末'}, 跳過打卡操作`);
-        // clockSendMessage(`今天是假日: ${holidayInfo?.description || '週末'}, 跳過打卡操作`);
-        return;
-    }
-    // 使用 Playwright 的 chromium 瀏覽器 (已改為 import)
-    const browser = await chromium.launch();
-
-    for (const user of users) {
+    while (retryCount < MAX_RETRY_ATTEMPTS && !success) {
         try {
-            // 檢查今天指定用戶是否不打卡
-            const skipDateCheck = await isSkipDate(today, user.username);
-            if (skipDateCheck) {
-                console.log(`今天是指定跳過打卡的日期: ${today.toISOString().slice(0, 10)}, 跳過打卡操作`);
-                clockSendMessage(`今天是指定跳過打卡的日期: ${today.toISOString().slice(0, 10)}, 跳過打卡操作`);
-                return;
+            if (retryCount > 0) {
+                console.log(`重試第 ${retryCount} 次為用戶 ${user.username} 打${actionName}卡`);
+                await clockSendMessage(`重試第 ${retryCount} 次為用戶 ${user.username} 打${actionName}卡`);
             }
+
             let context;
             console.log(`為用戶 ${user.username} 打${actionName}卡`);
             const gpsPosition = user.gpsPosition;
             console.log(gpsPosition !== '' && gpsPosition !== undefined)
             console.log(`GPS 位置: ${gpsPosition}`);
+
             if (gpsPosition === '' || gpsPosition === undefined || gpsPosition === null) {
                 context = await browser.newContext();
                 console.log('沒有 GPS 位置，使用預設位置');
@@ -79,7 +69,6 @@ const clockAction = async (actionType) => {
                     permissions: ['geolocation']
                 });
             }
-            // const context = await browser.newContext();
 
             const page = await context.newPage();
 
@@ -94,9 +83,11 @@ const clockAction = async (actionType) => {
             // 3. 點擊登入按鈕
             await page.click('.login-button');
             console.log(`用戶 ${user.username} 登入`);
+
             // 4. 等待登入成功
             await page.waitForURL('https://portal.nueip.com/home');
             console.log(`用戶 ${user.username} 登入成功`);
+
             // 5. 點擊指定的DOM按鈕 (上班卡或下班卡)
             await page.locator('.punch-button').nth(buttonIndex).click();
 
@@ -119,14 +110,93 @@ const clockAction = async (actionType) => {
             }
 
             await context.close();
+            success = true; // 標記操作成功
         } catch (error) {
-            console.error(`用戶 ${user.username} ${actionName}打卡失敗:`, error);
-            await clockSendMessage(`${actionName}打卡失敗: ${user.username}`);
+            retryCount++;
+            console.error(`用戶 ${user.username} ${actionName}打卡失敗 (嘗試 ${retryCount}/${MAX_RETRY_ATTEMPTS}):`, error);
+            await clockSendMessage(`${actionName}打卡失敗 (嘗試 ${retryCount}/${MAX_RETRY_ATTEMPTS}): ${user.username}`);
+
+            // 如果已經達到最大重試次數，則記錄最終失敗
+            if (retryCount >= MAX_RETRY_ATTEMPTS) {
+                console.error(`用戶 ${user.username} ${actionName}打卡在 ${MAX_RETRY_ATTEMPTS} 次嘗試後失敗`);
+                await clockSendMessage(`用戶 ${user.username} ${actionName}打卡在 ${MAX_RETRY_ATTEMPTS} 次嘗試後失敗`);
+            } else {
+                // 等待一段時間再重試
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+        }
+    }
+
+    return success;
+};
+
+const clockAction = async (actionType) => {
+    const isClockIn = actionType === 'in';
+    const actionName = isClockIn ? '上班' : '下班';
+    const buttonIndex = isClockIn ? 0 : 1;
+    console.log(`開始執行${actionName}打卡: ${new Date().toLocaleString()}`);
+    const today = new Date();
+    const holidayCheck = await isHoliday(today);
+
+    // 假日就全部用戶不打卡
+    if (holidayCheck) {
+        const holidayInfo = await getHolidayInfo(today);
+        console.log(`今天是假日: ${holidayInfo?.description || '週末'}, 跳過打卡操作`);
+        // clockSendMessage(`今天是假日: ${holidayInfo?.description || '週末'}, 跳過打卡操作`);
+        return;
+    }
+
+    // 使用 Playwright 的 chromium 瀏覽器 (已改為 import)
+    const browser = await chromium.launch();
+
+    // 記錄成功和失敗的用戶
+    const results = {
+        success: [],
+        failure: []
+    };
+
+    for (const user of users) {
+        try {
+            // 檢查今天指定用戶是否不打卡
+            const skipDateCheck = await isSkipDate(today, user.username);
+            if (skipDateCheck) {
+                console.log(`今天是指定跳過打卡的日期: ${today.toISOString().slice(0, 10)}, 跳過打卡操作`);
+                await clockSendMessage(`今天是指定跳過打卡的日期: ${today.toISOString().slice(0, 10)}, 跳過打卡操作`);
+                continue;
+            }
+
+            // 執行打卡並處理重試邏輯
+            const success = await clockForUser(user, browser, isClockIn, actionName, buttonIndex);
+
+            if (success) {
+                results.success.push(user.username);
+            } else {
+                results.failure.push(user.username);
+            }
+        } catch (error) {
+            console.error(`用戶 ${user.username} 的處理過程中發生意外錯誤:`, error);
+            await clockSendMessage(`用戶 ${user.username} 的處理過程中發生意外錯誤: ${error.message}`);
+            results.failure.push(user.username);
         }
     }
 
     await browser.close();
+
     console.log(`${actionName}打卡程序完成: ${new Date().toLocaleString()}`);
+    console.log(`成功: ${results.success.join(', ') || '無'}`);
+    console.log(`失敗: ${results.failure.join(', ') || '無'}`);
+
+    // 發送摘要訊息
+    if (results.success.length > 0 || results.failure.length > 0) {
+        let summaryMsg = `${actionName}打卡摘要:\n`;
+        if (results.success.length > 0) {
+            summaryMsg += `✅ 成功: ${results.success.join(', ')}\n`;
+        }
+        if (results.failure.length > 0) {
+            summaryMsg += `❌ 失敗: ${results.failure.join(', ')}`;
+        }
+        await clockSendMessage(summaryMsg);
+    }
 };
 
 // 上班打卡函數
@@ -138,4 +208,3 @@ export const ClockOn = async () => {
 export const ClockOff = async () => {
     return clockAction('out');
 };
-
