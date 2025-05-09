@@ -13,7 +13,10 @@ TELEGRAM_KEY=123456789:ABC-DEF1234ghIkl-zyx57W2L0u
 RANGE_MIN=10
 # 聊天室ID 沒有則為空字串
 CHAT_ID=123456789
-
+# 上班打卡時間
+WORK_START_TIME=08:50
+# 下班打卡時間
+WORK_END_TIME=18:00
 ```
 ### NUEIP_USERS
 - **company** 公司代號
@@ -30,6 +33,8 @@ telegram機器人Key
 ### CHAT_ID
 telegram訊息發送聊天室ID
 不填會抓機器人預設的聊天室ID
+### WORK_START_TIME && WORK_END_TIME
+上班打卡時間與下班打卡時間
 
 ## Setup
 
