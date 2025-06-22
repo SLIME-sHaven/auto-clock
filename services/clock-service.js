@@ -1,5 +1,5 @@
 import {getHolidayInfo, isHoliday, isSkipDate} from "./holiday-service.js";
-import {getGpsPosition, randomizeGpsCoordinate} from "../utils/common.js";
+import {getCurrentPosition, getGpsPosition, randomizeGpsCoordinate} from "../utils/common.js";
 import {sendMessage, sendPhoto} from "./telegram-service.js"
 import {chromium} from "@playwright/test";
 import dotenv from 'dotenv';
@@ -50,7 +50,7 @@ const clockForUser = async (user, browser, isClockIn, actionName, buttonIndex) =
 
             let context;
             console.log(`為用戶 ${user.username} 打${actionName}卡`);
-            const gpsPosition = user.gpsPosition;
+            const gpsPosition = getCurrentPosition(user.gpsPosition);
             console.log(gpsPosition !== '' && gpsPosition !== undefined)
             console.log(`GPS 位置: ${gpsPosition}`);
 

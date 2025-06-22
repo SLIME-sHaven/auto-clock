@@ -71,3 +71,20 @@ export const randomizeGpsCoordinate = (coordinate) => {
     // console.log(`標準情況 ${coordinate} -> ${newCoordStr} (保留3位，第4位開始隨機化，確保至少有${randomDigitsCount}位隨機數字)`);
     return parseFloat(newCoordStr);
 };
+
+
+export const getCurrentPosition = (position) => {
+    switch (true){
+        // 若為陣列，就是代表打卡地點會根據索引日期決定，0為週一，1為週二，依此類推
+        case Array.isArray(position):{
+            // 獲取當前日期
+            const today = new Date();
+            // 直接轉換 (週一=0, 週二=1, ..., 週日=6)
+            const dayIndex = (today.getDay() + 6) % 7;
+            return position[dayIndex] || position[0]; // 若當天沒有設定，則使用第一個位置
+        }
+        // 若為其他，則直接返回
+        default:
+            return position;
+    }
+}
