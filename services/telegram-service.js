@@ -144,7 +144,7 @@ const useTelegramService = async () => {
         const match = msg.text.match(setUserPosition);
         if (match && match.length === 3) {
             const username = match[1].trim(); // 擷取使用者名稱
-            const position = match[2].trim(); // 擷取緯度和經度
+            const position = /^\[.*\]$/.test(match[2]) ? JSON.parse(match[2]) : match[2] ; // 擷取緯度和經度
 
             switch (true){
                 case Array.isArray(position):
