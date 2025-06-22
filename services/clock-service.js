@@ -8,7 +8,7 @@ import fs from 'fs/promises';
 dotenv.config();
 
 // 從環境變數取得使用者資訊
-const users = JSON.parse(process.env.NUEIP_USERS);
+export const users = JSON.parse(process.env.NUEIP_USERS);
 
 // 設置重試次數（可以從環境變數讀取或設為常數）
 const MAX_RETRY_ATTEMPTS = parseInt(process.env.MAX_RETRY_ATTEMPTS || '3');
@@ -208,3 +208,19 @@ export const ClockOn = async () => {
 export const ClockOff = async () => {
     return clockAction('out');
 };
+
+export const setAssginUserData = (username,key,value) => {
+    const userData = users.find(user => user.username === username);
+    const userIndex = users.findIndex(user => user.username === username);
+    if (userData) {
+        userData[key] = value;
+        users[userIndex] = userData; // 更新用戶數據
+        // 將更新後的用戶數據寫回環境變數
+        process.env.NUEIP_USERS = JSON.stringify(users);
+        console.log(`已更新 ${username} 的 ${key} 為 ${value}`);
+        return true;
+    } else {
+        console.error(`找不到用戶 ${username}`);
+        return false;
+    }
+}

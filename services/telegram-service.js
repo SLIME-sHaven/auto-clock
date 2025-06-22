@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import TelegramBot from 'node-telegram-bot-api';
 import fs from 'fs/promises';
 import path from 'path';
-import {ClockOn, ClockOff} from "./clock-service.js";
+import {ClockOn, ClockOff, setAssginUserData} from "./clock-service.js";
 import {addSkipDate, removeSkipDate, getUserSkipDates} from "./holiday-service.js";
 
 // 檔案保存路徑
@@ -10,6 +10,8 @@ const CONFIG_FILE = path.join(process.cwd(), 'config.json');
 const leaveRegex = /我要請假(\d{8}),(.+)/;;
 const cancelLeaveRegex = /我要收回請假(\d{8}),(.+)/;
 const queryLeaveRegex  = /查詢請假,?(.+)/;
+const setUserPosition = /^更改打卡地點,([^,]+),(.+)$/;
+const positionRegex = /^-?\d+\.?\d*,-?\d+\.?\d*$/; // 緯度格式，例如 "25.0478,121.5319"
 const commandRegexes = [
     /^\/\w+$/, // 以 / 开头的命令
     /^啟動打卡$/,
@@ -19,6 +21,7 @@ const commandRegexes = [
     cancelLeaveRegex,
     queryLeaveRegex,
     /^今日排程$/,
+    setUserPosition,
 ];
 // 載入環境變數
 dotenv.config();
@@ -38,11 +41,16 @@ const useTelegramService = async () => {
     // 監聽 /start 命令
     bot.onText(/\/start/, (msg) => {
         const chatId = msg.chat.id;
-        bot.sendMessage(chatId, '歡迎使用 API 機器人！\n首次使用請先輸入「啟動打卡」。\n您可以使用以下命令：\n/hello - 讓天線寶寶跟你say hello\n啟動打卡 - 啟動打卡功能\n幫我打上班卡 - 打上班卡\n幫我打下班卡 - 打下班卡\n今日排程 - 查看今日排程\n我要請假YYYYMMDD,用戶名 - 請假\n我要收回請假YYYYMMDD,用戶名 - 收回請假');
+        bot.sendMessage(chatId, '歡迎使用 API 機器人！\n首次使用請先輸入「啟動打卡」。\n您可以使用以下命令：\n/hello - 讓天線寶寶跟你say hello\n啟動打卡 - 啟動打卡功能\n幫我打上班卡 - 打上班卡\n幫我打下班卡 - 打下班卡\n今日排程 - 查看今日排程\n我要請假YYYYMMDD,用戶名 - 請假\n我要收回請假YYYYMMDD,用戶名 - 收回請假\n - 查詢請假,用戶名 - 查詢請假紀錄\n更改打卡地點,用戶名,緯度,經度 - 更改打卡位置\n請使用指令與機器人互動。');
     });
 
     bot.onText(/啟動打卡/, async (msg) => {
         const chatId = msg.chat.id;
+        const originId = await loadChatId();
+        if(originId) {
+            bot.sendMessage(chatId, `打卡功能已啟動，當前聊天室ID為：${originId}，若要更改發送聊天室請先關閉打卡功能\n 您的聊天室ID為：${chatId}`);
+            return
+        }
         global.chatId = chatId;
         // 保存聊天 ID 到檔案
         await saveChatId(chatId);
@@ -130,6 +138,43 @@ const useTelegramService = async () => {
             bot.sendMessage(chatId, `查詢 ${username} 的請假資料時發生錯誤，請稍後再試`);
         }
     });
+
+    bot.onText(setUserPosition, (msg) => {
+        const chatId = msg.chat.id;
+        const match = msg.text.match(setUserPosition);
+        if (match && match.length === 3) {
+            const username = match[1].trim(); // 擷取使用者名稱
+            const position = match[2].trim(); // 擷取緯度和經度
+
+            switch (true){
+                case Array.isArray(position):
+                    for (let i = 0; i < position.length; i++) {
+                        if (!positionRegex.test(position[i])) {
+                            bot.sendMessage(chatId, `請輸入有效的緯度和經度格式，例如：25.0478,121.5319`);
+                            return;
+                        }
+                    }
+                break;
+                default:
+                    if (!positionRegex.test(position)) {
+                        bot.sendMessage(chatId, '請輸入有效的緯度和經度格式，例如：25.0478,121.5319');
+                        return;
+                    }
+                break;
+            }
+
+            // 保存用戶打卡位置邏輯
+            const isSuccess = setAssginUserData(username,'gpsPosition', position);
+            if (!isSuccess) {
+                bot.sendMessage(chatId, `無法設置 ${username} 的打卡位置，請檢查用戶名是否正確`);
+                return;
+            }
+            // 這裡可以添加保存位置的代碼
+            bot.sendMessage(chatId, `已為 ${username} 設置打卡位置：${position}`);
+        } else {
+            bot.sendMessage(chatId, '請使用正確的格式：更改打卡地點,用戶名,緯度,經度');
+        }
+    })
 
 
     // 處理其他消息
