@@ -296,3 +296,21 @@ export const isSkipClock = async (date, username = '') => {
     const isCurrentHoliday = await isHoliday(date);
     return isCurrentSkipDate || isCurrentHoliday;
 }
+
+
+/**
+ * 取得指定使用者的所有請假日期（YYYYMMDD 陣列，已排序）
+ * @param {string} username 使用者名稱，必填
+ * @returns {Promise<string[]>} e.g. ['20250610', '20250701', ...]
+ */
+export async function getUserSkipDates(username) {
+    if (!username) throw new Error('username 不能為空');
+
+    const skipDates = await loadSkipDates();         // 讀取／快取 skip 集合
+    return Array.from(skipDates)                     // Set → Array
+        .filter(
+            (entry) => typeof entry === 'object' && entry.username === username
+        )                                              // 只保留該使用者
+        .map((entry) => entry.date)                    // 取出 date 欄位
+        .sort();                                       // 依字典序 (= 日期先後) 排序
+}

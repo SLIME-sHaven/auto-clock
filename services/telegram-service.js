@@ -3,12 +3,13 @@ import TelegramBot from 'node-telegram-bot-api';
 import fs from 'fs/promises';
 import path from 'path';
 import {ClockOn, ClockOff} from "./clock-service.js";
-import {addSkipDate, removeSkipDate} from "./holiday-service.js";
+import {addSkipDate, removeSkipDate, getUserSkipDates} from "./holiday-service.js";
 
 // 檔案保存路徑
 const CONFIG_FILE = path.join(process.cwd(), 'config.json');
 const leaveRegex = /我要請假(\d{8}),(.+)/;;
 const cancelLeaveRegex = /我要收回請假(\d{8}),(.+)/;
+const queryLeaveRegex  = /查詢請假,?(.+)/;
 const commandRegexes = [
     /^\/\w+$/, // 以 / 开头的命令
     /^啟動打卡$/,
@@ -16,6 +17,7 @@ const commandRegexes = [
     /^幫我打上班卡$/,
     leaveRegex,
     cancelLeaveRegex,
+    queryLeaveRegex,
     /^今日排程$/,
 ];
 // 載入環境變數
@@ -104,6 +106,29 @@ const useTelegramService = async () => {
             bot.sendMessage(chatId, `移除 ${date} 為請假日期失敗`);
         })
         // 这里添加你的收回请假处理逻辑
+    });
+
+    // 查詢請假指令
+    bot.onText(queryLeaveRegex, async (msg) => {
+        const chatId   = msg.chat.id;                  // 取得聊天室 ID
+        const username = msg.text.match(queryLeaveRegex)[1].trim(); // 擷取使用者名稱
+
+        // 先回覆「已收到」訊息，避免使用者等待
+        bot.sendMessage(chatId, `已收到查詢 ${username} 請假日期的請求，正在處理中...`);
+
+        try {
+            const dates = await getUserSkipDates(username);        // 讀取該使用者請假
+            if (dates.length === 0) {
+                bot.sendMessage(chatId, `${username} 目前沒有任何請假紀錄`);
+            } else {
+                // 將日期用換行排版，易讀
+                const list = dates.map(d => `• ${d}`).join('\n');
+                bot.sendMessage(chatId, `${username} 的請假日期如下：\n${list}`);
+            }
+        } catch (err) {
+            console.error('查詢請假失敗：', err);
+            bot.sendMessage(chatId, `查詢 ${username} 的請假資料時發生錯誤，請稍後再試`);
+        }
     });
 
 
