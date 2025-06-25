@@ -59,7 +59,7 @@ node main.js
 docker build -t auto-clock:1.0 . // 建置映像檔
 docker run --name auto-clock -d auto-clock:1.0 // 啟動容器
 docer logs -f auto-clock // 查看容器log
-
+docker run -d --name auto-clock-container --restart always auto-clock:1.0 // 啟動容器並設定自動重啟
 ```
 
 ## 啟用Telegram功能
