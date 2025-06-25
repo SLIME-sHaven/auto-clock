@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import {ClockOn, ClockOff, setAssginUserData} from "./clock-service.js";
 import {addSkipDate, removeSkipDate, getUserSkipDates} from "./holiday-service.js";
+import {setInTime, setOutTime, setRangeMinutes} from "../main.js";
 
 // 檔案保存路徑
 const CONFIG_FILE = path.join(process.cwd(), 'config.json');
@@ -11,6 +12,9 @@ const leaveRegex = /我要請假(\d{8}),(.+)/;;
 const cancelLeaveRegex = /我要收回請假(\d{8}),(.+)/;
 const queryLeaveRegex  = /查詢請假,?(.+)/;
 const setUserPosition = /^更改打卡地點,([^,]+),(.+)$/;
+const setUserClockOffTime = /^更改下班時間,((?:[01]\d|2[0-3])):([0-5]\d)$/; // 更改下班時間格式，例如 "更改下班時間,18:00"
+const setUserClockInTime = /^更改上班時間,((?:[01]\d|2[0-3])):([0-5]\d)$/; // 更改上班時間格式，例如 "更改上班時間,08:50"
+const setRandomClockTime = /^更改隨機打卡時間,(\d+)$/; // 更改隨機打卡時間格式，例如 "更改隨機打卡時間,10" (10分鐘範圍)
 const positionRegex = /^-?\d+\.?\d*,-?\d+\.?\d*$/; // 緯度格式，例如 "25.0478,121.5319"
 const commandRegexes = [
     /^\/\w+$/, // 以 / 开头的命令
@@ -22,6 +26,9 @@ const commandRegexes = [
     queryLeaveRegex,
     /^今日排程$/,
     setUserPosition,
+    setUserClockOffTime,
+    setUserClockInTime,
+    setRandomClockTime
 ];
 // 載入環境變數
 dotenv.config();
@@ -41,7 +48,20 @@ const useTelegramService = async () => {
     // 監聽 /start 命令
     bot.onText(/\/start/, (msg) => {
         const chatId = msg.chat.id;
-        bot.sendMessage(chatId, '歡迎使用 API 機器人！\n首次使用請先輸入「啟動打卡」。\n您可以使用以下命令：\n/hello - 讓天線寶寶跟你say hello\n啟動打卡 - 啟動打卡功能\n幫我打上班卡 - 打上班卡\n幫我打下班卡 - 打下班卡\n今日排程 - 查看今日排程\n我要請假YYYYMMDD,用戶名 - 請假\n我要收回請假YYYYMMDD,用戶名 - 收回請假\n查詢請假,用戶名 - 查詢請假紀錄\n更改打卡地點,用戶名,緯度,經度 - 更改打卡位置\n更改打卡地點,用戶名,["緯度,經度","緯度,經度"] - 按照星期更改打卡位置\n請使用指令與機器人互動。');
+        bot.sendMessage(chatId, `歡迎使用 API 機器人！
+首次使用請先輸入「啟動打卡」。
+您可以使用以下命令：
+> /hello - 讓天線寶寶跟你say hello
+> 啟動打卡 - 啟動打卡功能
+> 幫我打上班卡 - 打上班卡
+> 幫我打下班卡 - 打下班卡
+> 今日排程 - 查看今日排程
+> 我要請假YYYYMMDD,用戶名 - 請假
+> 我要收回請假YYYYMMDD,用戶名 - 收回請假
+> 查詢請假,用戶名 - 查詢請假紀錄
+> 更改打卡地點,用戶名,緯度,經度 - 更改打卡位置
+> 更改打卡地點,用戶名,["緯度,經度","緯度,經度"] - 按照星期更改打卡位置
+請使用指令與機器人互動。`);
     });
 
     bot.onText(/啟動打卡/, async (msg) => {
@@ -209,6 +229,71 @@ const useTelegramService = async () => {
             bot.sendMessage(chatId, '請使用正確的格式：\n單一位置：更改打卡地點,用戶名,緯度,經度\n多個位置：更改打卡地點,用戶名,["緯度,經度","緯度,經度"]');
         }
     });
+
+    // 更改下班時間指令
+    bot.onText(setUserClockOffTime, (msg) => {
+        const chatId = msg.chat.id;
+        const match = msg.text.match(setUserClockOffTime);
+
+        if (match && match.length === 3) {
+            const clockOffTime = `${match[1]}:${match[2]}`; // 擷取下班時間
+            console.log(`收到更改下班時間請求: ${clockOffTime}`);
+
+            // 驗證時間格式
+            if (!/^(\d{2}):(\d{2})$/.test(clockOffTime)) {
+                bot.sendMessage(chatId, '請輸入有效的下班時間格式，例如：18:00');
+                return;
+            }
+
+            bot.sendMessage(chatId, `下班設置為時間：${clockOffTime}`);
+            setOutTime(clockOffTime); // 更新下班時間
+        } else {
+            bot.sendMessage(chatId, '請使用正確的格式：更改下班時間,用戶名,HH:MM');
+        }
+    });
+
+    bot.onText(setUserClockInTime, (msg) => {
+        const chatId = msg.chat.id;
+        const match = msg.text.match(setUserClockInTime);
+        console.log(match, ' match')
+        console.log(match[1], match[2], ' match[1] match[2]', match.length)
+        if (match && match.length === 3) {
+            const clockInTime = `${match[1]}:${match[2]}`; // 擷取下班時間
+            console.log(`收到更改上班時間請求: ${clockInTime}`);
+            // 驗證時間格式
+            if (!/^(\d{2}):(\d{2})$/.test(clockInTime)) {
+                bot.sendMessage(chatId, '請輸入有效的上班時間格式，例如：08:50');
+                return;
+            }
+
+            bot.sendMessage(chatId, `上班設置為時間：${clockInTime}`);
+            setInTime(clockInTime); // 更新上班時間
+        } else {
+            bot.sendMessage(chatId, '請使用正確的格式：更改上班時間,用戶名,HH:MM');
+        }
+    })
+
+    // 更改隨機打卡時間指令
+    bot.onText(setRandomClockTime, (msg) => {
+        const chatId = msg.chat.id;
+        const match = msg.text.match(setRandomClockTime);
+
+        if (match && match.length === 2) {
+            const rangeMinutes = parseInt(match[1].trim(), 10); // 擷取隨機打卡時間範圍
+            console.log(`收到更改隨機打卡時間請求: ${rangeMinutes} 分鐘`);
+
+            // 驗證範圍是否為正整數
+            if (isNaN(rangeMinutes) || rangeMinutes <= 0) {
+                bot.sendMessage(chatId, '請輸入有效的隨機打卡時間範圍，例如：10');
+                return;
+            }
+
+            bot.sendMessage(chatId, `已設置隨機打卡時間範圍為 ${rangeMinutes} 分鐘`);
+            setRangeMinutes(rangeMinutes); // 更新隨機打卡時間範圍
+        } else {
+            bot.sendMessage(chatId, '請使用正確的格式：更改隨機打卡時間,分鐘數');
+        }
+    })
 
 
     // 處理其他消息
