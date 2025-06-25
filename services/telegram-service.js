@@ -41,7 +41,7 @@ const useTelegramService = async () => {
     // 監聽 /start 命令
     bot.onText(/\/start/, (msg) => {
         const chatId = msg.chat.id;
-        bot.sendMessage(chatId, '歡迎使用 API 機器人！\n首次使用請先輸入「啟動打卡」。\n您可以使用以下命令：\n/hello - 讓天線寶寶跟你say hello\n啟動打卡 - 啟動打卡功能\n幫我打上班卡 - 打上班卡\n幫我打下班卡 - 打下班卡\n今日排程 - 查看今日排程\n我要請假YYYYMMDD,用戶名 - 請假\n我要收回請假YYYYMMDD,用戶名 - 收回請假\n - 查詢請假,用戶名 - 查詢請假紀錄\n更改打卡地點,用戶名,緯度,經度 - 更改打卡位置\n請使用指令與機器人互動。');
+        bot.sendMessage(chatId, '歡迎使用 API 機器人！\n首次使用請先輸入「啟動打卡」。\n您可以使用以下命令：\n/hello - 讓天線寶寶跟你say hello\n啟動打卡 - 啟動打卡功能\n幫我打上班卡 - 打上班卡\n幫我打下班卡 - 打下班卡\n今日排程 - 查看今日排程\n我要請假YYYYMMDD,用戶名 - 請假\n我要收回請假YYYYMMDD,用戶名 - 收回請假\n查詢請假,用戶名 - 查詢請假紀錄\n更改打卡地點,用戶名,緯度,經度 - 更改打卡位置\n更改打卡地點,用戶名,["緯度,經度","緯度,經度"] - 按照星期更改打卡位置\n請使用指令與機器人互動。');
     });
 
     bot.onText(/啟動打卡/, async (msg) => {
@@ -142,39 +142,73 @@ const useTelegramService = async () => {
     bot.onText(setUserPosition, (msg) => {
         const chatId = msg.chat.id;
         const match = msg.text.match(setUserPosition);
+
         if (match && match.length === 3) {
             const username = match[1].trim(); // 擷取使用者名稱
-            const position = /^\[.*\]$/.test(match[2]) ? JSON.parse(match[2]) : match[2] ; // 擷取緯度和經度
+            const positionStr = match[2].trim(); // 擷取位置字串
 
-            switch (true){
-                case Array.isArray(position):
+            let position;
+
+            // 解析位置資料
+            try {
+                // 檢查是否為 JSON 陣列格式
+                if (/^\[.*\]$/.test(positionStr)) {
+                    position = JSON.parse(positionStr);
+
+                    // 驗證是否為陣列
+                    if (!Array.isArray(position)) {
+                        bot.sendMessage(chatId, '陣列格式錯誤，請使用正確的JSON陣列格式');
+                        return;
+                    }
+
+                    // 驗證陣列中的每個位置格式
                     for (let i = 0; i < position.length; i++) {
                         if (!positionRegex.test(position[i])) {
-                            bot.sendMessage(chatId, `請輸入有效的緯度和經度格式，例如：25.0478,121.5319`);
+                            bot.sendMessage(chatId, `陣列中第 ${i + 1} 個位置格式錯誤，請使用格式：25.0478,121.5319`);
                             return;
                         }
                     }
-                break;
-                default:
-                    if (!positionRegex.test(position)) {
-                        bot.sendMessage(chatId, '請輸入有效的緯度和經度格式，例如：25.0478,121.5319');
+
+                    // 檢查陣列是否為空
+                    if (position.length === 0) {
+                        bot.sendMessage(chatId, '位置陣列不能為空');
                         return;
                     }
-                break;
+
+                } else {
+                    // 單一座標格式
+                    position = positionStr;
+
+                    // 驗證單一座標格式
+                    if (!positionRegex.test(position)) {
+                        bot.sendMessage(chatId, '請輸入有效的緯度和經度格式\n單一位置：25.0478,121.5319\n多個位置：["25.0478,121.5319","25.0479,121.5320"]');
+                        return;
+                    }
+                }
+
+            } catch (error) {
+                bot.sendMessage(chatId, 'JSON格式錯誤，請檢查陣列格式是否正確\n範例：["25.0478,121.5319","25.0479,121.5320"]');
+                return;
             }
 
             // 保存用戶打卡位置邏輯
-            const isSuccess = setAssginUserData(username,'gpsPosition', position);
+            const isSuccess = setAssginUserData(username, 'gpsPosition', position);
             if (!isSuccess) {
                 bot.sendMessage(chatId, `無法設置 ${username} 的打卡位置，請檢查用戶名是否正確`);
                 return;
             }
-            // 這裡可以添加保存位置的代碼
-            bot.sendMessage(chatId, `已為 ${username} 設置打卡位置：${position}`);
+
+            // 成功訊息，根據類型顯示不同格式
+            const positionDisplay = Array.isArray(position)
+                ? `${position.length}個位置: ${position.join(', ')}`
+                : position;
+
+            bot.sendMessage(chatId, `已為 ${username} 設置打卡位置：${positionDisplay}`);
+
         } else {
-            bot.sendMessage(chatId, '請使用正確的格式：更改打卡地點,用戶名,緯度,經度');
+            bot.sendMessage(chatId, '請使用正確的格式：\n單一位置：更改打卡地點,用戶名,緯度,經度\n多個位置：更改打卡地點,用戶名,["緯度,經度","緯度,經度"]');
         }
-    })
+    });
 
 
     // 處理其他消息
