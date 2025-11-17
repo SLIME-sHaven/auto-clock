@@ -65,8 +65,14 @@ const scheduleWithRandomTime = (baseHour, baseMinute, rangeInMinutes, jobFunctio
 const setupDailySchedules = async () => {
 
     // 清除前一天的排程
-    if (global.clockInJob) global.clockInJob.stop();
-    if (global.clockOutJob) global.clockOutJob.stop();
+    if (global.clockInJob) {
+        global.clockInJob.stop();
+        global.clockInJob.destroy();
+    }
+    if (global.clockOutJob) {
+        global.clockOutJob.stop();
+        global.clockOutJob.destroy();
+    }
 
     // 設置今天的隨機上班打卡時間 (預設是8:50-9:00 之間)
     global.clockInJob = scheduleWithRandomTime(startHour, startMin, rangeMinutes, () => {
