@@ -3,9 +3,19 @@ import cron from 'node-cron';
 import {getRandomTime, parseTimeString} from "./utils/time.js";
 import {ClockOn, ClockOff} from "./services/clock-service.js"
 import startTelegramService, {sendMessage, setScheduleText} from './services/telegram-service.js';
+import { NueipClockStrategy, ZenClockStrategy } from './services/strategies/clock/clock-strategies.js'
 import dotenv from 'dotenv';
 dotenv.config();
 
+// 打卡系統 Map
+export const CLOCK_STRATEGY_MAP = new Map([
+    ['nueip', new NueipClockStrategy()],
+    ['zen', new ZenClockStrategy()],
+]);
+
+
+const clockSystem = process.env.WORK_SYSTEM || 'NUEIP'; // 打卡系統預設 NUEIP
+const currentStrategy = CLOCK_STRATEGY_MAP.get(clockSystem); // 取得對應的打卡系統模組
 const clockInTime = process.env.WORK_START_TIME || '08:50'; // 上班打卡時間
 const clockOutTime = process.env.WORK_END_TIME || '18:00'; // 下班打卡時間
 const formatClockInTime = parseTimeString(clockInTime);
@@ -76,12 +86,12 @@ const setupDailySchedules = async () => {
 
     // 設置今天的隨機上班打卡時間 (預設是8:50-9:00 之間)
     global.clockInJob = scheduleWithRandomTime(startHour, startMin, rangeMinutes, () => {
-        ClockOn().catch(err => console.error('上班打卡執行錯誤:', err));
+        ClockOn(currentStrategy).catch(err => console.error('上班打卡執行錯誤:', err));
     }, true);
 
     // 設置今天的隨機下班打卡時間 (預設是18:00-18:10 之間)
     global.clockOutJob = scheduleWithRandomTime(endHour, endMin, rangeMinutes, () => {
-        ClockOff().catch(err => console.error('下班打卡執行錯誤:', err));
+        ClockOff(currentStrategy).catch(err => console.error('下班打卡執行錯誤:', err));
     }, false);
 
     sendMessage(
