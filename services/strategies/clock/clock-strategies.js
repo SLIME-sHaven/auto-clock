@@ -53,6 +53,8 @@ export class ZenClockStrategy extends ClockStrategy {
     async performClock(page, isClockIn, buttonIndex) {
         // 如果是上班則不做任何動作
         console.log('isClockIn', isClockIn);
+        await page.waitForTimeout(3000); // 等待載入渲染
+
         if (isClockIn) return;
         console.log('執行下班簽退流程');
         // 等待頁面加載完成
