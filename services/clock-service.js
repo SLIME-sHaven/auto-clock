@@ -1,14 +1,23 @@
-import {getHolidayInfo, isHoliday, isSkipDate} from "./holiday-service.js";
+import {isSkipDate} from "./skip-date-service.js";
 import {getCurrentPosition, getGpsPosition, randomizeGpsCoordinate} from "../utils/common.js";
 import {sendMessage, sendPhoto} from "./telegram-service.js"
 import {chromium} from "@playwright/test";
 import dotenv from 'dotenv';
 import fs from 'fs/promises';
+import {TaiwanHolidayStrategy} from "./strategies/holiday/taiwan.js";
 
 dotenv.config();
 
+export const HOLIDAY_STRATEGY_MAP = new Map([
+    ['taiwan', new TaiwanHolidayStrategy()],
+]);
+
+
 // 從環境變數取得使用者資訊
 export const users = JSON.parse(process.env.NUEIP_USERS);
+const holidayStrategy = HOLIDAY_STRATEGY_MAP.get(process.env.HOLIDAY_STRATEGY || 'taiwan');
+const isHolidayFunc = holidayStrategy ? holidayStrategy.checkHoliday.bind(holidayStrategy) : null;
+const getHolidayInfo = holidayStrategy ? holidayStrategy.getHolidayInfo.bind(holidayStrategy) : null;
 
 // 設置重試次數（可以從環境變數讀取或設為常數）
 const MAX_RETRY_ATTEMPTS = parseInt(process.env.MAX_RETRY_ATTEMPTS || '3');
@@ -124,7 +133,7 @@ const clockAction = async (actionType, strategy) => {
     console.log(`開始執行${actionName}打卡: ${new Date().toLocaleString()}`);
 
     const today = new Date();
-    const holidayCheck = await isHoliday(today);
+    const holidayCheck = await isHolidayFunc(today);
 
     const isSkipWeekend = process.env.SKIP_WEEKEND === 'true';
 

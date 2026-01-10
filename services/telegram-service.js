@@ -3,7 +3,7 @@ import TelegramBot from 'node-telegram-bot-api';
 import fs from 'fs/promises';
 import path from 'path';
 import {ClockOn, ClockOff, setAssginUserData} from "./clock-service.js";
-import {addSkipDate, removeSkipDate, getUserSkipDates} from "./holiday-service.js";
+import {addSkipDate, removeSkipDate, getUserSkipDates} from "./skip-date-service.js";
 import {setInTime, setOutTime, setRangeMinutes} from "../main.js";
 
 // 檔案保存路徑
