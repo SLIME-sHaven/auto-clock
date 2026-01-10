@@ -9,6 +9,7 @@ import {setInTime, setOutTime, setRangeMinutes} from "../main.js";
 // 檔案保存路徑
 const CONFIG_FILE = path.join(process.cwd(), 'config.json');
 const leaveRegex = /我要請假(\d{8}),(.+)/;;
+const changeStartDateRegex = /更改起始日期(\d{8})/;
 const cancelLeaveRegex = /我要收回請假(\d{8}),(.+)/;
 const queryLeaveRegex  = /查詢請假,?(.+)/;
 const setUserPosition = /^更改打卡地點,([^,]+),(.+)$/;
@@ -62,6 +63,7 @@ const useTelegramService = async () => {
 > 更改上/下班時間,HH:MM - 更改打卡時間 example: 更改下班時間,18:00
 > 更改打卡地點,用戶名,緯度,經度 - 更改打卡位置
 > 更改打卡地點,用戶名,["緯度,經度","緯度,經度"] - 按照星期更改打卡位置
+> 更改起始日期YYYY-MM-DD - 更改假日起始日期
 請使用指令與機器人互動。`);
     });
 
@@ -296,6 +298,35 @@ const useTelegramService = async () => {
         }
     })
 
+    bot.onText(changeStartDateRegex, (msg) => {
+        const chatId = msg.chat.id;
+        const match = msg.text.match(changeStartDateRegex);
+
+        if (match && match.length === 2) {
+            const newDate = match[1].trim(); // 擷取新起始日期
+            console.log(`收到更改假日策略起始日期請求: ${newDate}`);
+
+            // 驗證日期格式 YYYYMMDD
+            if (!/^\d{8}$/.test(newDate)) {
+                bot.sendMessage(chatId, '請輸入有效的日期格式，例如：20240101');
+                return;
+            }
+            const formatDate = `${newDate.slice(0,4)}-${newDate.slice(4,6)}-${newDate.slice(6,8)}`;
+
+            changeStartDate(formatDate).then((isSuccess) => {
+                if (isSuccess) {
+                    bot.sendMessage(chatId, `假日策略起始日期已成功更改為: ${formatDate}`);
+                } else {
+                    bot.sendMessage(chatId, `更改假日策略起始日期失敗`);
+                }
+            }).catch(() => {
+                bot.sendMessage(chatId, `更改假日策略起始日期失敗`);
+            });
+        } else {
+            bot.sendMessage(chatId, '請使用正確的格式：更改起始日期YYYYMMDD');
+        }
+    });
+
 
     // 處理其他消息
     bot.on('message', (msg) => {
@@ -382,5 +413,23 @@ export const sendMessage = async (message) => {
         return false;
     }
 };
+
+export const changeStartDate = async (newDate) => {
+    try {
+        const holidayStrategy = global.holidayStrategy;
+        console.log(holidayStrategy, ' holidayStrategy');
+        if (holidayStrategy && typeof holidayStrategy.changeStartDate === 'function') {
+            holidayStrategy.changeStartDate(newDate);
+            console.log(`假日策略起始日期已更改為: ${newDate}`);
+            return true;
+        } else {
+            console.error('當前假日策略不支持更改起始日期');
+            return false;
+        }
+    } catch (error) {
+        console.error('更改假日策略起始日期失敗:', error);
+        return false;
+    }
+}
 
 export default useTelegramService;

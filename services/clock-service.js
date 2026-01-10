@@ -5,17 +5,20 @@ import {chromium} from "@playwright/test";
 import dotenv from 'dotenv';
 import fs from 'fs/promises';
 import {TaiwanHolidayStrategy} from "./strategies/holiday/taiwan.js";
+import { BiWeeklySaturdayStrategy } from "./strategies/holiday/biWeekly.js";
 
 dotenv.config();
 
 export const HOLIDAY_STRATEGY_MAP = new Map([
     ['taiwan', new TaiwanHolidayStrategy()],
+    ['biWeekly', new BiWeeklySaturdayStrategy('2026-01-10')],
 ]);
 
 
 // 從環境變數取得使用者資訊
 export const users = JSON.parse(process.env.NUEIP_USERS);
-const holidayStrategy = HOLIDAY_STRATEGY_MAP.get(process.env.HOLIDAY_STRATEGY || 'taiwan');
+const holidayStrategy = HOLIDAY_STRATEGY_MAP.get(process.env.HOLIDAY_TYPE || 'taiwan');
+global.holidayStrategy = holidayStrategy;
 const isHolidayFunc = holidayStrategy ? holidayStrategy.checkHoliday.bind(holidayStrategy) : null;
 const getHolidayInfo = holidayStrategy ? holidayStrategy.getHolidayInfo.bind(holidayStrategy) : null;
 
@@ -134,11 +137,12 @@ const clockAction = async (actionType, strategy) => {
 
     const today = new Date();
     const holidayCheck = await isHolidayFunc(today);
+    console.log(`今天是假日: ${holidayCheck}`);
 
-    const isSkipWeekend = process.env.SKIP_WEEKEND === 'true';
+    const isNotSkipWeekendJudge = process.env.SKIP_WEEKEND === 'true';
 
     // 假日時若設定跳過則直接返回 若設置false則繼續打卡
-    if (holidayCheck && isSkipWeekend) {
+    if (holidayCheck && !isNotSkipWeekendJudge) {
         const holidayInfo = await getHolidayInfo(today);
         console.log(`今天是假日: ${holidayInfo?.description || '週末'}, 跳過打卡操作`);
         return;
