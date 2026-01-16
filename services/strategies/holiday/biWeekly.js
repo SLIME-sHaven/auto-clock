@@ -50,6 +50,7 @@ export class BiWeeklySaturdayStrategy extends HolidayStrategy {
 
         // 檢查週六是否為假日
         if (dayOfWeek === 6) {
+            console.log('是否為假日',this._isSaturdayHoliday(date));
             return this._isSaturdayHoliday(date);
         }
 
@@ -64,8 +65,6 @@ export class BiWeeklySaturdayStrategy extends HolidayStrategy {
      */
     _isSaturdayHoliday(date) {
         // 計算與起始日期相差的天數
-        console.log(this.startDate, 'this.startDate');
-        console.log(globalStartDate, 'globalStartDate in func');
         console.log(this._formatDate(date), '_formatDate(date) in func');
         // 如果起始日期是當天，則為假日
         if(globalStartDate === this._formatDate(date)) return true;
@@ -79,10 +78,10 @@ export class BiWeeklySaturdayStrategy extends HolidayStrategy {
         const diffWeeks = Math.floor(diffDays / 7);
         console.log(diffWeeks, 'diffWeeks');
         console.log('_isSaturdayHoliday 為true則為假日', diffWeeks % 2 === 0)
-        console.log(diffWeeks >= 0, 'diffWeeks >= 0');
+        console.log(diffWeeks % 2, 'diffWeeks % 2');
 
         // 如果相差的週數是偶數，則為假日
-        return diffWeeks % 2 === 0;;
+        return diffWeeks % 2 === 0;
     }
 
     /**

@@ -55,14 +55,18 @@ export class ZenClockStrategy extends ClockStrategy {
         console.log('isClockIn', isClockIn);
         await page.waitForTimeout(3000); // 等待載入渲染
 
-        if (isClockIn) return;
+        if (isClockIn) {
+            // 等待 3 分鐘以模擬使用者停留在頁面上
+            await page.waitForTimeout(180000); // 3 分鐘 = 180000 毫秒
+            return;
+        };
         console.log('執行下班簽退流程');
         // 等待頁面加載完成
         await page.waitForLoadState('networkidle');
         await page.waitForTimeout(1000); // 額外等待 JS 初始化
         // 先用較快的 load
         await page.waitForLoadState('load');
-        
+
         // 再等待關鍵元素出現在html中
         const frame = page.frameLocator('#appIframe-my');
 
