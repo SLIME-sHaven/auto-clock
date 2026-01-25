@@ -56,8 +56,13 @@ export class ZenClockStrategy extends ClockStrategy {
         await page.waitForTimeout(3000); // 等待載入渲染
 
         if (isClockIn) {
-            // 等待 3 分鐘以模擬使用者停留在頁面上
-            await page.waitForTimeout(180000); // 3 分鐘 = 180000 毫秒
+            // 等待 5 分鐘以模擬使用者停留在頁面上
+            await page.goto('http://zen.tg9.work/zentao/user-login-L3plbnRhby9teS5odG1s.html');
+            await page.fill('#account', user.username);
+            await page.fill('#password', user.password);
+            await page.click('#submit');
+            await page.waitForURL('http://zen.tg9.work/zentao/my.html');
+            await page.waitForTimeout(300000); // 5分鐘 = 300000毫秒
             return;
         };
         console.log('執行下班簽退流程');
