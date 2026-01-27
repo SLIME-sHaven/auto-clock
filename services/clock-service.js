@@ -88,7 +88,7 @@ const clockForUser = async (user, browser, isClockIn, actionName, buttonIndex, s
             await strategy.login(page, user);
             console.log(`用戶 ${user.username} 登入成功`);
 
-            await strategy.performClock(page, isClockIn, buttonIndex);
+            await strategy.performClock(page, isClockIn, buttonIndex, user);
 
             const hasSuccess = await strategy.verifySuccess(page, isClockIn, buttonIndex);
             console.log(`${actionName}卡打卡成功狀態: ${hasSuccess ? '成功' : '失敗'}`);

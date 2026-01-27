@@ -4,7 +4,7 @@ export class ClockStrategy {
         throw new Error('必須實作 login 方法');
     }
 
-    async performClock(page, isClockIn, buttonIndex) {
+    async performClock(page, isClockIn, buttonIndex, ...args) {
         throw new Error('必須實作 performClock 方法');
     }
 
@@ -50,7 +50,7 @@ export class ZenClockStrategy extends ClockStrategy {
         await page.waitForURL('http://zen.tg9.work/zentao/my.html');
     }
 
-    async performClock(page, isClockIn, buttonIndex) {
+    async performClock(page, isClockIn, buttonIndex, user) {
         // 如果是上班則不做任何動作
         console.log('isClockIn', isClockIn);
         await page.waitForTimeout(3000); // 等待載入渲染
