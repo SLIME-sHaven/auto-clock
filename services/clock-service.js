@@ -65,6 +65,7 @@ const clockForUser = async (user, browser, isClockIn, actionName, buttonIndex, s
             // GPS 設定
             const gpsPosition = getCurrentPosition(user.gpsPosition);
             let context;
+            let content2;
 
             if (gpsPosition === '' || gpsPosition === undefined || gpsPosition === null) {
                 context = await browser.newContext();
@@ -80,15 +81,23 @@ const clockForUser = async (user, browser, isClockIn, actionName, buttonIndex, s
                     },
                     permissions: ['geolocation']
                 });
+                content2 = await browser.newContext({
+                    geolocation: {
+                        latitude: randomizeGpsCoordinate(latitude), // 緯度座標
+                        longitude: randomizeGpsCoordinate(longitude), // 經度座標
+                        accuracy: 100 // 精確度
+                    },
+                    permissions: ['geolocation']
+                });
             }
 
             const page = await context.newPage();
-
+            const page2 = await content2.newPage();
             // 使用根據依賴的模式執行不同系統的打卡流程
             await strategy.login(page, user);
             console.log(`用戶 ${user.username} 登入成功`);
 
-            await strategy.performClock(page, isClockIn, buttonIndex, user);
+            await strategy.performClock(page, isClockIn, buttonIndex, user, page2);
 
             const hasSuccess = await strategy.verifySuccess(page, isClockIn, buttonIndex);
             console.log(`${actionName}卡打卡成功狀態: ${hasSuccess ? '成功' : '失敗'}`);

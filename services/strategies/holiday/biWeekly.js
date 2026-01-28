@@ -1,6 +1,6 @@
 import { HolidayStrategy } from "./holiday-strategies.js";
 
-let globalStartDate = '2026-01-10';
+let globalStartDate = '2026-01-03';
 /**
  * 雙週六假日策略
  * - 每週日都是假日

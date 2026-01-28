@@ -50,19 +50,21 @@ export class ZenClockStrategy extends ClockStrategy {
         await page.waitForURL('http://zen.tg9.work/zentao/my.html');
     }
 
-    async performClock(page, isClockIn, buttonIndex, user) {
+    async performClock(page, isClockIn, buttonIndex, user, page2) {
         // 如果是上班則不做任何動作
         console.log('isClockIn', isClockIn);
         await page.waitForTimeout(3000); // 等待載入渲染
 
         if (isClockIn) {
             // 等待 5 分鐘以模擬使用者停留在頁面上
-            await page.goto('http://zen.tg9.work/zentao/user-login-L3plbnRhby9teS5odG1s.html');
-            await page.fill('#account', user.username);
-            await page.fill('#password', user.password);
-            await page.click('#submit');
-            await page.waitForURL('http://zen.tg9.work/zentao/my.html');
-            await page.waitForTimeout(300000); // 5分鐘 = 300000毫秒
+            await page2.goto('http://zen.tg9.work/zentao/user-login-L3plbnRhby9teS5odG1s.html');
+            await page2.fill('#account', user.username);
+            await page2.fill('#password', user.password);
+            await page2.click('#submit');
+            await page2.waitForURL('http://zen.tg9.work/zentao/my.html');
+            console.log('執行上班打卡流程，等待 5 分鐘以模擬使用者停留在頁面上');
+            await page2.waitForTimeout(300000); // 5分鐘 = 300000 毫秒
+            console.log('上班打卡流程結束，關閉頁面');
             return;
         };
         console.log('執行下班簽退流程');
