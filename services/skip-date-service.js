@@ -10,15 +10,98 @@ const __dirname = path.dirname(__filename);
 // 存儲需要跳過打卡的日期
 let skipDatesCache = new Set();
 
-// Modified loadSkipDates function to handle the new format
+/**
+ * 將日期範圍字串展開為個別日期陣列
+ * 支援單一日期 "20260216" 或日期範圍 "20260216-20260221"
+ * @param {string} dateStr 日期字串（YYYYMMDD 或 YYYYMMDD-YYYYMMDD）
+ * @returns {string[]} 展開後的日期陣列
+ */
+function expandDateRange(dateStr) {
+    // 檢查是否為日期範圍格式（YYYYMMDD-YYYYMMDD）
+    const rangeMatch = dateStr.match(/^(\d{8})-(\d{8})$/);
+    if (!rangeMatch) {
+        // 單一日期，直接回傳
+        return [dateStr];
+    }
+
+    const startStr = rangeMatch[1];
+    const endStr = rangeMatch[2];
+    const startDate = new Date(
+        parseInt(startStr.slice(0, 4)),
+        parseInt(startStr.slice(4, 6)) - 1,
+        parseInt(startStr.slice(6, 8))
+    );
+    const endDate = new Date(
+        parseInt(endStr.slice(0, 4)),
+        parseInt(endStr.slice(4, 6)) - 1,
+        parseInt(endStr.slice(6, 8))
+    );
+
+    const dates = [];
+    const current = new Date(startDate);
+    while (current <= endDate) {
+        const y = current.getFullYear().toString();
+        const m = (current.getMonth() + 1).toString().padStart(2, '0');
+        const d = current.getDate().toString().padStart(2, '0');
+        dates.push(`${y}${m}${d}`);
+        current.setDate(current.getDate() + 1);
+    }
+    return dates;
+}
+
+/**
+ * 解析環境變數 SKIP_DATES，回傳跳過日期的物件陣列
+ * 格式：username:YYYYMMDD 或 username:YYYYMMDD-YYYYMMDD，多筆以逗號分隔
+ * username 為 * 時代表所有使用者皆適用
+ * @returns {{date: string, username: string}[]}
+ */
+function parseEnvSkipDates() {
+    const envValue = process.env.SKIP_DATES;
+    if (!envValue || envValue.trim() === '') {
+        return [];
+    }
+
+    const entries = [];
+    const parts = envValue.split(',').map(s => s.trim()).filter(Boolean);
+
+    for (const part of parts) {
+        const colonIndex = part.indexOf(':');
+        if (colonIndex === -1) {
+            console.warn(`SKIP_DATES 格式錯誤，忽略: "${part}"（正確格式: username:YYYYMMDD）`);
+            continue;
+        }
+
+        const username = part.slice(0, colonIndex).trim();
+        const dateStr = part.slice(colonIndex + 1).trim();
+
+        if (!username || !dateStr) {
+            console.warn(`SKIP_DATES 格式錯誤，忽略: "${part}"`);
+            continue;
+        }
+
+        // 展開日期範圍
+        const expandedDates = expandDateRange(dateStr);
+        for (const date of expandedDates) {
+            if (!/^\d{8}$/.test(date)) {
+                console.warn(`SKIP_DATES 日期格式錯誤，忽略: "${date}"`);
+                continue;
+            }
+            entries.push({ date, username });
+        }
+    }
+
+    return entries;
+}
+
+// 載入跳過打卡日期（合併 JSON 檔案與環境變數 SKIP_DATES）
 export async function loadSkipDates() {
     try {
-        // If cache already has data, return directly
+        // 若快取已有資料，直接回傳
         if (skipDatesCache.size > 0) {
             return skipDatesCache;
         }
 
-        // Read skip dates from local file
+        // 從 JSON 檔案讀取
         try {
             const filePath = path.resolve(__dirname, '..', 'contants', 'skip-dates.json');
             const data = await fs.readFile(filePath, 'utf8');
@@ -27,13 +110,20 @@ export async function loadSkipDates() {
             if (Array.isArray(parsedData)) {
                 skipDatesCache = new Set(parsedData);
                 console.log(`從本地文件載入跳過打卡日期: ${skipDatesCache.size} 筆記錄`);
-                return skipDatesCache;
             }
         } catch (readError) {
             console.log(`讀取本地跳過日期數據失敗: ${readError.message}, 將使用空集合`);
         }
 
-        // If no data found, return empty set
+        // 從環境變數 SKIP_DATES 讀取並合併
+        const envEntries = parseEnvSkipDates();
+        if (envEntries.length > 0) {
+            for (const entry of envEntries) {
+                skipDatesCache.add(entry);
+            }
+            console.log(`從環境變數 SKIP_DATES 載入跳過打卡日期: ${envEntries.length} 筆記錄`);
+        }
+
         return skipDatesCache;
     } catch (error) {
         console.error('載入跳過日期數據失敗:', error);
@@ -56,11 +146,11 @@ export async function isSkipDate(date, username = '') {
             (date.getMonth() + 1).toString().padStart(2, '0') +
             date.getDate().toString().padStart(2, '0');
 
-        // 檢查日期是否在跳過集合中，並且用戶名匹配
+        // 檢查日期是否在跳過集合中，並且用戶名匹配（username 為 * 代表所有使用者）
         for (const entry of skipDates) {
             if (typeof entry === 'object' &&
                 entry.date === formattedDate &&
-                entry.username === username) {
+                (entry.username === username || entry.username === '*')) {
                 return true;
             }
         }
