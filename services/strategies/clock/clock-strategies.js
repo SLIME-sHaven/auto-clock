@@ -105,7 +105,8 @@ export class ZenClockStrategy extends ClockStrategy {
         // 點擊簽退連結
         await frame.locator('a[href="javascript:$.apps.logout()"]').click();
         // 等待跳轉回登入頁面
-        await page.waitForURL('http://zen.tg9.work/zentao/user-login-L3plbnRhby9hdHRlbmQtcGVyc29uYWwuaHRtbA==.html');
+        // 等待跳轉到登入頁面（不指定完整 URL，避免 base64 參數變動導致失敗）
+        await page.waitForURL('**/user-login*.html');
     }
 
     async verifySuccess(page, isClockIn, buttonIndex) {
