@@ -14,7 +14,7 @@ const clockTimezone = process.env.WORK_TIMEZONE || 'Asia/Taipei';
 
 export const HOLIDAY_STRATEGY_MAP = new Map([
     ['taiwan', new TaiwanHolidayStrategy()],
-    ['biWeekly', new BiWeeklySaturdayStrategy('2026-01-10')],
+    ['biWeekly', new BiWeeklySaturdayStrategy(process.env.BIWEEKLY_START_DATE)], // 雙週六假日策略，起始日期從環境變數取得
 ]);
 
 
