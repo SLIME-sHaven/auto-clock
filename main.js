@@ -15,6 +15,7 @@ export const CLOCK_STRATEGY_MAP = new Map([
 
 
 const clockSystem = process.env.WORK_SYSTEM || 'NUEIP'; // 打卡系統預設 NUEIP
+const clockTimezone = process.env.WORK_TIMEZONE || 'Asia/Taipei'; // 排程時區預設 Asia/Taipei
 const currentStrategy = CLOCK_STRATEGY_MAP.get(clockSystem); // 取得對應的打卡系統模組
 const clockInTime = process.env.WORK_START_TIME || '08:50'; // 上班打卡時間
 const clockOutTime = process.env.WORK_END_TIME || '18:00'; // 下班打卡時間
@@ -62,12 +63,12 @@ const scheduleWithRandomTime = (baseHour, baseMinute, rangeInMinutes, jobFunctio
     const randomTime = getRandomTime(baseHour, baseMinute, rangeInMinutes);
     const cronTime = `${randomTime.getSeconds()} ${randomTime.getMinutes()} ${randomTime.getHours()} * * *`; // 每天都跑
     if (isIn) {
-        todayClockInTimeText = randomTime.toLocaleTimeString()
+        todayClockInTimeText = randomTime.toLocaleTimeString('zh-TW', { timeZone: clockTimezone })
     } else {
-        todayClockOutTimeText = randomTime.toLocaleTimeString()
+        todayClockOutTimeText = randomTime.toLocaleTimeString('zh-TW', { timeZone: clockTimezone })
     }
     return cron.schedule(cronTime, jobFunction, {
-        timezone: "Asia/Taipei"
+        timezone: clockTimezone
     });
 };
 
@@ -95,17 +96,17 @@ const setupDailySchedules = async () => {
     }, false);
 
     sendMessage(
-        `已設置今天的排程打卡時間 (${new Date().toLocaleDateString()})\n今天的上班打卡時間: ${todayClockInTimeText}\n下班打卡時間: ${todayClockOutTimeText}\n僅僅設置排程，假日與請假判斷依照各個用戶`
+        `已設置今天的排程打卡時間 (${new Date().toLocaleDateString('zh-TW', { timeZone: clockTimezone })})\n今天的上班打卡時間: ${todayClockInTimeText}\n下班打卡時間: ${todayClockOutTimeText}\n僅僅設置排程，假日與請假判斷依照各個用戶`
     )
     setScheduleText(
         `今天的上班打卡時間: ${todayClockInTimeText}\n下班打卡時間: ${todayClockOutTimeText}`
     )
-    console.log(`已設置今天的隨機打卡時間 (${new Date().toLocaleDateString()})`);
+    console.log(`已設置今天的隨機打卡時間 (${new Date().toLocaleDateString('zh-TW', { timeZone: clockTimezone })})`);
 };
 
 // 每天凌晨重新設置隨機排程
 cron.schedule('0 0 * * *', setupDailySchedules, {
-    timezone: "Asia/Taipei"
+    timezone: clockTimezone
 });
 
 // 程式啟動時立即設置今天的排程
@@ -118,6 +119,7 @@ if (process.env.TELEGRAM_KEY) {
 }
 
 console.log('打卡排程已啟動，等待執行中...');
+console.log(`排程時區: ${clockTimezone}`);
 console.log(`上班打卡時間範圍: 週一至週五 早上 ${startHour}:${startMin}+-${rangeMinutes} 特殊：假日的補班日會打卡、國定假日則不會打卡`);
 console.log(`下班打卡時間範圍: 週一至週五 晚上 ${endHour}:${endMin}+-${rangeMinutes} 特殊：假日的補班日會打卡、國定假日則不會打卡`);
 

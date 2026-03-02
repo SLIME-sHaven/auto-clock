@@ -68,11 +68,14 @@ export class BiWeeklySaturdayStrategy extends HolidayStrategy {
         console.log(this._formatDate(date), '_formatDate(date) in func');
         // 如果起始日期是當天，則為假日
         if(globalStartDate === this._formatDate(date)) return true;
-        const startDate = new Date(globalStartDate);
+
+        // 將起始日期解析為本地午夜（避免 new Date('YYYY-MM-DD') 被解析為 UTC 午夜導致天數計算偏移）
+        const [y, m, d] = globalStartDate.split('-').map(Number);
+        const startDate = new Date(y, m - 1, d);
         console.log(startDate, 'startDate in func');
         const checkDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
         const diffTime = checkDate.getTime() - startDate.getTime();
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
         // 計算相差幾週
         const diffWeeks = Math.floor(diffDays / 7);

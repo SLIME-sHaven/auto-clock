@@ -9,6 +9,9 @@ import { BiWeeklySaturdayStrategy } from "./strategies/holiday/biWeekly.js";
 
 dotenv.config();
 
+// 時區設定，統一使用環境變數 WORK_TIMEZONE
+const clockTimezone = process.env.WORK_TIMEZONE || 'Asia/Taipei';
+
 export const HOLIDAY_STRATEGY_MAP = new Map([
     ['taiwan', new TaiwanHolidayStrategy()],
     ['biWeekly', new BiWeeklySaturdayStrategy('2026-01-10')],
@@ -54,6 +57,7 @@ const clockForUser = async (user, browser, isClockIn, actionName, buttonIndex, s
     let success = false;
 
     while (retryCount < MAX_RETRY_ATTEMPTS && !success) {
+        let context;
         try {
             if (retryCount > 0) {
                 console.log(`重試第 ${retryCount} 次為用戶 ${user.username} 打${actionName}卡`);
@@ -64,15 +68,20 @@ const clockForUser = async (user, browser, isClockIn, actionName, buttonIndex, s
 
             // GPS 設定
             const gpsPosition = getCurrentPosition(user.gpsPosition);
-            let context;
+
+            // 設定較大的 viewport，避免禪道 SPA 選單項目因空間不足被隱藏到「更多」下拉選單
+            const contextOptions = {
+                viewport: { width: 1280, height: 1080 }
+            };
 
             if (gpsPosition === '' || gpsPosition === undefined || gpsPosition === null) {
-                context = await browser.newContext();
+                context = await browser.newContext(contextOptions);
                 console.log('沒有 GPS 位置，使用預設位置');
             } else {
                 const {latitude, longitude} = getGpsPosition(gpsPosition);
                 console.log(`GPS 位置: 緯度 ${latitude}, 經度 ${longitude}`);
                 context = await browser.newContext({
+                    ...contextOptions,
                     geolocation: {
                         latitude: randomizeGpsCoordinate(latitude), // 緯度座標
                         longitude: randomizeGpsCoordinate(longitude), // 經度座標
@@ -93,7 +102,7 @@ const clockForUser = async (user, browser, isClockIn, actionName, buttonIndex, s
             console.log(`${actionName}卡打卡成功狀態: ${hasSuccess ? '成功' : '失敗'}`);
 
             // 截取結果截圖並發送
-            const screenshotPath = `clock-${isClockIn ? 'in' : 'out'}-${user.username}-${new Date().toISOString().slice(0, 10)}.png`;
+            const screenshotPath = `clock-${isClockIn ? 'in' : 'out'}-${user.username}-${new Date().toLocaleDateString('sv-SE', { timeZone: clockTimezone })}.png`;
             await page.screenshot({path: screenshotPath});
 
             // 發送截圖與文字到 Telegram
@@ -109,6 +118,10 @@ const clockForUser = async (user, browser, isClockIn, actionName, buttonIndex, s
             success = true; // 標記操作成功
         } catch (error) {
             retryCount++;
+            // 清理失敗的 context，避免資源洩漏導致後續重試失敗
+            if (context) {
+                try { await context.close(); } catch (e) { /* 忽略清理錯誤 */ }
+            }
             console.error(`用戶 ${user.username} ${actionName}打卡失敗 (嘗試 ${retryCount}/${MAX_RETRY_ATTEMPTS}):`, error);
             await clockSendMessage(`${actionName}打卡失敗 (嘗試 ${retryCount}/${MAX_RETRY_ATTEMPTS}): ${user.username}`);
 
@@ -132,7 +145,7 @@ const clockAction = async (actionType, strategy) => {
     const actionName = isClockIn ? '上班' : '下班';
     const buttonIndex = isClockIn ? 0 : 1;
 
-    console.log(`開始執行${actionName}打卡: ${new Date().toLocaleString()}`);
+    console.log(`開始執行${actionName}打卡: ${new Date().toLocaleString('zh-TW', { timeZone: clockTimezone })}`);
 
     const today = new Date();
     const holidayCheck = await isHolidayFunc(today);
@@ -158,8 +171,9 @@ const clockAction = async (actionType, strategy) => {
             // 檢查今天指定用戶是否不打卡
             const skipDateCheck = await isSkipDate(today, user.username);
             if (skipDateCheck) {
-                console.log(`今天是指定跳過打卡的日期: ${today.toISOString().slice(0, 10)}, 跳過打卡操作`);
-                await clockSendMessage(`今天是指定跳過打卡的日期: ${today.toISOString().slice(0, 10)}, 跳過打卡操作`);
+                const todayStr = today.toLocaleDateString('sv-SE', { timeZone: clockTimezone });
+                console.log(`今天是指定跳過打卡的日期: ${todayStr}, 跳過打卡操作`);
+                await clockSendMessage(`今天是指定跳過打卡的日期: ${todayStr}, 跳過打卡操作`);
                 continue;
             }
 
@@ -179,7 +193,7 @@ const clockAction = async (actionType, strategy) => {
     }
 
     await browser.close();
-    console.log(`${actionName}打卡程序完成: ${new Date().toLocaleString()}`);
+    console.log(`${actionName}打卡程序完成: ${new Date().toLocaleString('zh-TW', { timeZone: clockTimezone })}`);
     console.log(`成功: ${results.success.join(', ') || '無'}`);
     console.log(`失敗: ${results.failure.join(', ') || '無'}`);
     // 發送摘要訊息
