@@ -11,10 +11,11 @@ dotenv.config();
 
 // 時區設定，統一使用環境變數 WORK_TIMEZONE
 const clockTimezone = process.env.WORK_TIMEZONE || 'Asia/Taipei';
+const clockStartDate = process.env.CLOCK_START_DATE || '2026-03-07'; // 預設起始日期
 
 export const HOLIDAY_STRATEGY_MAP = new Map([
     ['taiwan', new TaiwanHolidayStrategy()],
-    ['biWeekly', new BiWeeklySaturdayStrategy(process.env.BIWEEKLY_START_DATE)], // 雙週六假日策略，起始日期從環境變數取得
+    ['biWeekly', new BiWeeklySaturdayStrategy(clockStartDate)], // 雙週六假日策略，起始日期從環境變數取得
 ]);
 
 
